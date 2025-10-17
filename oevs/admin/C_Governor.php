@@ -1,0 +1,426 @@
+<?php
+include('session.php');
+include('dbcon.php');
+
+/* for active state in pill menu */
+$self = basename($_SERVER['PHP_SELF']);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Governor - Canvassing Report</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  <style>
+    :root{
+      --primary-color:#002f6c;
+      --accent-color:#0056b3;
+      --bg-color:#f4f6f8;
+      --white:#fff;
+      --shadow:0 4px 12px rgba(0,0,0,.1);
+      --transition:all .3s ease;
+      --font:'Inter',sans-serif;
+    }
+    body{font-family:var(--font);background:var(--bg-color);margin:0;color:#333}
+
+    /* === Fixed, smart-hide header === */
+    header{
+      position: fixed;
+      top:0; left:0; right:0;
+      z-index:1000;
+      background:var(--white);
+      box-shadow:var(--shadow);
+      padding:10px 30px;
+      display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+      transform:translateY(0);
+      transition: transform 220ms ease-in-out, box-shadow 220ms ease-in-out, background 220ms ease-in-out;
+    }
+    .header--hidden{ transform: translateY(-100%); }
+    .header--scrolled{ box-shadow: 0 6px 18px rgba(0,0,0,.08); background: var(--white); }
+
+    .logo-section{display:flex;align-items:center;gap:10px}
+    .logo-section img{height:40px}
+    .logo-section .title{font-weight:700;font-size:18px;color:var(--primary-color);line-height:1.2}
+
+    nav{display:flex;align-items:center;gap:25px}
+    .nav-item{position:relative}
+    .nav-item>a{text-decoration:none;color:var(--primary-color);font-weight:600;padding:8px 12px;border-radius:6px;display:inline-block;transition:var(--transition)}
+    .nav-item>a:hover{background:var(--primary-color);color:#fff}
+
+    .dropdown{display:none;position:absolute;top:100%;left:0;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:200px;padding:8px 0;z-index:99}
+    .nav-item:hover>.dropdown{display:block}
+    .dropdown a{display:block;padding:10px 15px;color:var(--primary-color);text-decoration:none;font-weight:500;transition:var(--transition);white-space:nowrap}
+    .dropdown a:hover{background:var(--accent-color);color:#fff}
+
+    .submenu{display:none;position:absolute;top:0;left:100%;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:220px;padding:8px 0}
+    .has-submenu{position:relative}
+    .has-submenu>a{display:flex;justify-content:space-between;align-items:center}
+    .has-submenu>a i.fa-chevron-right{font-size:12px;margin-left:8px}
+    .has-submenu:hover>.submenu{display:block}
+
+    .content-wrapper{max-width:1400px;margin:30px auto;padding:0 20px}
+
+    /* ===== Toolbar container ===== */
+    .filter-section{
+      background:var(--white);
+      padding:15px 20px;
+      border-radius:10px;
+      margin-bottom:15px;
+      box-shadow:var(--shadow);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      justify-content:flex-start;
+      flex-wrap:wrap;
+    }
+
+    /* Add button + Download */
+    .add-btn{
+      background:#0056b3;color:#fff;border:1px solid #004a9a;
+      padding:9px 14px;border-radius:6px;font-weight:700;
+      display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;transition:var(--transition)
+    }
+    .add-btn:hover{background:#004a9a}
+
+    .btn-success{
+      background:#16a34a;color:#fff;border:1px solid #138a3e;
+      padding:9px 14px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:8px;
+      font-size:14px;cursor:pointer
+    }
+    .btn-success:hover{background:#138a3e}
+
+    .table-container{background:var(--white);border-radius:10px;box-shadow:var(--shadow);overflow:hidden;margin-top:20px}
+    .table-controls{padding:20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f0f0f0;gap:15px;flex-wrap:wrap;background:#fafbfc}
+    .items-per-page,.search-box{display:flex;align-items:center;gap:10px;color:#666;font-size:14px}
+    .items-per-page select,.search-box input{padding:8px 12px;border:1px solid #ddd;border-radius:6px;background:#fff}
+
+    table{width:100%;border-collapse:collapse;min-width:800px}
+    thead{background:linear-gradient(135deg,var(--primary-color) 0%,var(--accent-color) 100%)}
+    th{padding:16px;color:#fff;text-transform:uppercase;letter-spacing:.5px;font-weight:600;font-size:14px;text-align:left}
+    td{padding:16px;border-bottom:1px solid #f0f0f0;font-size:14px;vertical-align:middle}
+    tbody tr:hover{background:#f8f9fa;transform:scale(1.001)}
+
+    .candidate-photo{width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #e0e0e0;transition:var(--transition)}
+    .candidate-photo:hover{transform:scale(1.1);border-color:var(--accent-color)}
+
+    footer{text-align:center;padding:20px 0;color:#666;font-size:14px}
+
+    @media (max-width:768px){
+      header{flex-direction:column;align-items:flex-start}
+      nav{flex-direction:column;gap:8px;width:100%}
+      .filter-section{flex-direction:column;align-items:stretch}
+      .add-btn,.btn-success{width:100%;justify-content:center}
+      .table-container{overflow-x:auto}
+      table{min-width:700px}
+    }
+
+    /* === Pretty Filter (pill + sheet) === */
+    .filter-wrap{position:relative;display:inline-block}
+    .filter-pill{
+      background:#fff;color:#0b1324;border:1.5px solid var(--primary-color);
+      border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer;
+      display:inline-flex;align-items:center;gap:10px;box-shadow:none
+    }
+    .filter-pill:hover{background:#f0f6ff}
+    .filter-pill i{color:var(--primary-color)}
+    .filter-pill .caret{
+      border:solid var(--primary-color);border-width:0 2px 2px 0;
+      display:inline-block;padding:3px;transform:rotate(45deg)
+    }
+    .filter-panel{
+      position:absolute;top:110%;left:0;min-width:260px;max-width:320px;
+      background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+      box-shadow:0 14px 34px rgba(0,0,0,.18);padding:8px 0;z-index:50;display:none
+    }
+    .filter-panel.open{display:block}
+    .filter-item{
+      display:flex;gap:12px;align-items:flex-start;padding:10px 14px;
+      color:#0b1324;text-decoration:none
+    }
+    .filter-item:hover{background:#f3f6ff}
+    .filter-item .dot{
+      width:18px;height:18px;border:2px solid #9aa1ac;border-radius:999px;
+      display:inline-flex;align-items:center;justify-content:center;margin-top:2px
+    }
+    .filter-item .dot .checked{width:8px;height:8px;background:#0b4a9f;border-radius:999px;display:none}
+    .filter-item.active .dot{border-color:#0b4a9f}
+    .filter-item.active .dot .checked{display:block}
+    .filter-label{font-weight:700}
+    .filter-caption{font-size:12px;color:#6b7280;margin-top:2px}
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-section">
+      <img src="images/au.png" alt="Logo">
+      <div class="title">
+        ONLINE ELECTION VOTING SYSTEM<br>
+        <small>Phinma Araullo University</small>
+      </div>
+    </div>
+
+    <nav>
+      <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
+
+      <?php if (file_exists('nav_menu_dropdown.php')) { include 'nav_menu_dropdown.php'; } else { ?>
+        <div class="nav-item">
+          <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
+          <div class="dropdown">
+            <a href="candidate_list.php">Candidates</a>
+            <a href="voter_list.php">Voters</a>
+            <div class="has-submenu">
+              <a href="#">Admin Actions <i class="fa fa-chevron-right"></i></a>
+              <div class="submenu">
+                <a href="result.php"><i class="fa fa-table" style="margin-right:8px;"></i> Election Result</a>
+                <a href="winningresult.php"><i class="fa fa-trophy" style="margin-right:8px;"></i> Final Result</a>
+                <a href="backupnreset.php"><i class="fa fa-database" style="margin-right:8px;"></i> Backup and Reset</a>
+                <a href="dashboard.php"><i class="fa fa-chart-bar" style="margin-right:8px;"></i> Analytics</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      <?php } ?>
+
+      <div class="nav-item">
+        <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
+        <div class="dropdown"><a href="profile.php">View Profile</a></div>
+      </div>
+
+      <div class="nav-item">
+        <a href="#"><i class="fas fa-info-circle"></i> About</a>
+        <div class="dropdown"><a href="about.php">System Info</a><a href="contact.php">Contact Us</a></div>
+      </div>
+
+      <div class="nav-item"><a href="logout.php" style="color:red;"><i class="fas fa-sign-out-alt"></i> Logout</a></div>
+    </nav>
+  </header>
+
+  <!-- spacer to offset fixed header height -->
+  <div id="header-spacer" aria-hidden="true"></div>
+
+  <div class="content-wrapper">
+
+    <!-- Toolbar -->
+    <div class="filter-section">
+      <!-- PILL FILTER (replaces old dropdown button) -->
+      <div class="filter-wrap">
+        <button class="filter-pill" id="filterTrigger" type="button" aria-haspopup="true" aria-expanded="false">
+          <i class="fa fa-filter"></i> Filter By Position <span class="caret"></span>
+        </button>
+
+        <div class="filter-panel" id="filterPanel" role="menu" aria-label="Filter by position">
+          <a class="filter-item <?php echo ($self==='canvassing_report.php') ? 'active' : ''; ?>" href="canvassing_report.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">All</div><div class="filter-caption">Show all positions</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_President.php') ? 'active' : ''; ?>" href="C_President.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">President</div><div class="filter-caption">Only President</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Vice-President.php') ? 'active' : ''; ?>" href="C_Vice-President.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Vice-President</div><div class="filter-caption">Only Vice-President</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Governor.php') ? 'active' : ''; ?>" href="C_Governor.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Governor</div><div class="filter-caption">Only Governor</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Vice-Governor.php') ? 'active' : ''; ?>" href="C_Vice-Governor.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Vice-Governor</div><div class="filter-caption">Only Vice-Governor</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Secretary.php') ? 'active' : ''; ?>" href="C_Secretary.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Secretary</div><div class="filter-caption">Only Secretary</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Treasurer.php') ? 'active' : ''; ?>" href="C_Treasurer.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Treasurer</div><div class="filter-caption">Only Treasurer</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Socialmediaofficer.php') ? 'active' : ''; ?>" href="C_Socialmediaofficer.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Social-Media Officer</div><div class="filter-caption">Only Social-Media Officer</div></div>
+          </a>
+          <a class="filter-item <?php echo ($self==='C_Representative.php') ? 'active' : ''; ?>" href="C_Representative.php">
+            <span class="dot"><span class="checked"></span></span>
+            <div><div class="filter-label">Representative</div><div class="filter-caption">Only Representative</div></div>
+          </a>
+        </div>
+      </div>
+
+      <button class="add-btn" onclick="window.location.href='add_candidate.php'">
+        <i class="fas fa-plus"></i> Add Candidates
+      </button>
+
+      <?php
+        $q = mysqli_query($conn, "SELECT CandidateID FROM candidate LIMIT 1");
+        $r = mysqli_fetch_array($q);
+        $id_excel = $r ? $r['CandidateID'] : '';
+      ?>
+      <form method="POST" action="canvassing_excel.php" style="display:inline;">
+        <input type="hidden" name="id_excel" value="<?php echo htmlspecialchars($id_excel); ?>">
+        <button class="btn-success" name="save" type="submit"><i class="fas fa-download"></i> Download Excel File</button>
+      </form>
+    </div>
+
+    <div class="table-container">
+      <div class="table-controls">
+        <div class="items-per-page">
+          <label>Items per page:</label>
+          <select id="itemsPerPage">
+            <option value="15">15</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="search-box">
+          <label>Search:</label>
+          <input type="text" id="searchInput" placeholder="type here...">
+        </div>
+      </div>
+
+      <table id="reportTable">
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th>Party</th>
+            <th>FirstName</th>
+            <th>LastName</th>
+            <th>Year</th>
+            <th>Photo</th>
+            <th>No. of Votes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php
+          $candidate_query = mysqli_query($conn, "SELECT * FROM candidate WHERE Position='Governor'");
+          while ($row = mysqli_fetch_array($candidate_query)) {
+            $id = $row['CandidateID'];
+          ?>
+            <tr>
+              <td><?php echo htmlspecialchars($row['Position']); ?></td>
+              <td><?php echo htmlspecialchars($row['Party']); ?></td>
+              <td><?php echo htmlspecialchars($row['FirstName']); ?></td>
+              <td><?php echo htmlspecialchars($row['LastName']); ?></td>
+              <td><?php echo htmlspecialchars($row['Year']); ?></td>
+              <td>
+                <img class="candidate-photo"
+                     src="<?php echo htmlspecialchars($row['Photo']); ?>"
+                     alt="<?php echo htmlspecialchars($row['FirstName'].' '.$row['LastName']); ?>"
+                     title="<?php echo htmlspecialchars($row['FirstName'].' '.$row['LastName']); ?>">
+              </td>
+              <td style="text-align:center;">
+                <?php
+                  $votes_q = mysqli_query($conn, "SELECT 1 FROM votes WHERE CandidateID='$id'");
+                  echo mysqli_num_rows($votes_q);
+                ?>
+              </td>
+            </tr>
+          <?php } ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>© 2025 Online Election Voting System</footer>
+
+  <!-- lightweight search + items-per-page -->
+  <script>
+    (function(){
+      const searchInput = document.getElementById('searchInput');
+      const tbody = document.getElementById('reportTable').tBodies[0];
+      if (searchInput && tbody) {
+        searchInput.addEventListener('input', function(){
+          const q = this.value.toLowerCase();
+          for (let r of tbody.rows) r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+      }
+      const sel = document.getElementById('itemsPerPage');
+      if (sel && tbody) {
+        sel.addEventListener('change', function(){
+          const per = parseInt(this.value,10);
+          // show first N rows that aren't hidden by search
+          let shown = 0;
+          Array.from(tbody.rows).forEach((r)=>{
+            if (r.textContent.toLowerCase().includes((searchInput.value||'').toLowerCase())) {
+              if (shown < per) { r.style.display = ''; shown++; }
+              else { r.style.display = 'none'; }
+            }
+          });
+        });
+        // run once after load
+        setTimeout(()=> sel.dispatchEvent(new Event('change')), 0);
+      }
+    })();
+  </script>
+
+  <!-- Smart header behavior: hide on scroll down, show on scroll up -->
+  <script>
+    (function () {
+      const header = document.querySelector('header');
+      const spacer = document.getElementById('header-spacer');
+
+      function setSpacerHeight(){
+        spacer.style.height = header.offsetHeight + 'px';
+      }
+      setSpacerHeight();
+      window.addEventListener('resize', setSpacerHeight);
+
+      let lastY = window.scrollY;
+      let ticking = false;
+
+      function onScroll(){
+        const y = window.scrollY;
+        if (y > 4) header.classList.add('header--scrolled'); else header.classList.remove('header--scrolled');
+        if (y > lastY && y > header.offsetHeight) header.classList.add('header--hidden');
+        else header.classList.remove('header--hidden');
+        lastY = y;
+        ticking = false;
+      }
+      window.addEventListener('scroll', function(){
+        if (!ticking) { window.requestAnimationFrame(onScroll); ticking = true; }
+      }, {passive:true});
+    })();
+  </script>
+
+  <!-- Pill filter toggle (click, outside-click, Esc) -->
+  <script>
+    (function(){
+      const trigger = document.getElementById('filterTrigger');
+      const panel   = document.getElementById('filterPanel');
+      if (!trigger || !panel) return;
+
+      function closePanel(){
+        panel.classList.remove('open');
+        trigger.setAttribute('aria-expanded','false');
+      }
+
+      trigger.addEventListener('click', (e)=>{
+        e.preventDefault();
+        const willOpen = !panel.classList.contains('open');
+        if (willOpen) {
+          panel.classList.add('open');
+          trigger.setAttribute('aria-expanded','true');
+        } else {
+          closePanel();
+        }
+      });
+
+      document.addEventListener('click', (e)=>{
+        if (!panel.contains(e.target) && !trigger.contains(e.target)) closePanel();
+      });
+
+      document.addEventListener('keydown', (e)=>{
+        if (e.key === 'Escape') closePanel();
+      });
+    })();
+  </script>
+</body>
+</html>

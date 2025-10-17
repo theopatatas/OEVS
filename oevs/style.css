@@ -1,0 +1,387 @@
+body {
+  margin: 0;
+  font-family: "Poppins", sans-serif;
+  background: #fff;
+  height: 100vh;
+}
+
+.wrapper {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+.left-side {
+  flex: 1;
+  background: #f5f6fc;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 40px;
+}
+
+.left-side .au-logo {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  margin-bottom: 20px;
+}
+
+.left-side h2 {
+  font-size: 24px;
+  color: #222;
+  margin-bottom: 10px;
+}
+
+.left-side p {
+  color: #555;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.right-side {
+  flex: 1;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  background: #fff;
+  width: 450px;
+  padding: 1.5rem;
+  margin: 50px auto;
+  border-radius: 10px;
+  box-shadow: 1px 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+form {
+  margin: 0 2rem;
+}
+
+.form-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 1.3rem;
+  margin-bottom: 0.4rem;
+}
+
+input {
+  flex: 10;
+  color: inherit;
+  width: 100%;
+  background-color: transparent;
+  border: none;
+  font-size: 15px;
+  padding: 0 0.4em;
+  border-left: solid 1px hsla(0, 0%, 0%, 0.4);
+}
+
+input:focus {
+  border-left: solid 1px #002f6c;
+  outline: none;
+}
+
+.input-group {
+  padding: 1% 0;
+  position: relative;
+  background-color: hsla(227, 63%, 18%, 0.07);
+  margin: 1em auto;
+  border-radius: 12px;
+  display: flex;
+  padding: 0.7em 0.1em;
+}
+
+.error {
+  position: absolute;
+  left: 2em;
+  bottom: -1em;
+}
+
+.error p {
+  color: red;
+  font-weight: 500;
+  text-align: center;
+  font-size: 14px;
+}
+
+.input-group:focus-within {
+  border: 1.5px solid #002f6c;
+}
+
+.input-group i {
+  flex: 1;
+  color: #002f6c;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.input-group:focus-within i {
+  color: #002f6c;
+}
+
+.input-group.password i:first-child {
+  flex: 1.1;
+}
+
+.input-group select {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 3px;
+  background: #f1f1f1;
+  font-size: 16px;
+  margin-left: 10px;
+}
+
+.recover {
+  text-align: right;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.recover a {
+  text-decoration: none;
+  color: #d31431;
+}
+
+.recover a:hover {
+  color: #000;
+  text-decoration: underline;
+}
+
+.btn {
+  font-size: 1.1rem;
+  padding: 0.6em 0;
+  border-radius: 10px;
+  outline: none;
+  border: none;
+  width: 100%;
+  background: #002f6c;
+  color: #FFFBF4;
+  cursor: pointer;
+  transition: 0.9s;
+  margin-top: 0.4em;
+  font-weight: 600;
+}
+
+.btn:hover {
+  background: #002f6c;
+  color: #FFFBF4;
+}
+
+.or {
+  font-size: 1.1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.icons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+.icons i {
+  color: #002f6c;
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  border: 2px solid #002f6c;
+  transition: 0.3s;
+}
+
+.icons i:hover {
+  background: #fff;
+  font-size: 1.6rem;
+  border: 2px solid #002f6c;
+}
+
+.links {
+  display: flex;
+  justify-content: space-around;
+  padding: 0 4rem;
+  margin-top: 0.9rem;
+  font-weight: bold;
+}
+
+.links button {
+  color: #002f6c;
+  border: none;
+  background-color: transparent;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.links button:hover {
+  text-decoration: underline;
+  color: #000;
+}
+
+.error-main {
+  background-color: brown;
+  padding: 0.5em 1em;
+  border-radius: 12px;
+  width: 80%;
+  margin: 0 auto;
+}
+
+.error-main p {
+  color: white;
+  text-align: center;
+}
+
+.user-details {
+  margin-top: 5em;
+  font-size: 1.5em;
+  font-weight: 400;
+}
+
+.user-details p {
+  margin-bottom: 0.5em;
+  text-align: center;
+}
+
+.user-details p:first-child {
+  text-decoration: underline;
+  margin-bottom: 2em;
+  font-weight: 600;
+}
+
+.user-details a {
+  display: block;
+  text-align: center;
+  text-decoration-color: rgb(125, 125, 235);
+  color: rgb(125, 125, 235);
+  transition: 5ms;
+}
+
+.user-details a:hover {
+  color: blue;
+  text-decoration-color: blue;
+}
+
+/* Small devices (phones, less than 768px) */
+@media screen and (max-width: 767px) {
+  .wrapper {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .left-side,
+  .right-side {
+    flex: none;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .left-side .au-logo {
+    width: 150px;
+    height: 150px;
+  }
+
+  .form-title {
+    font-size: 1.2rem;
+    padding: 1rem;
+  }
+
+  .container {
+    width: 90%;
+    margin: 30px auto;
+    padding: 1rem;
+    box-shadow: unset;
+  }
+
+  .user-details {
+    font-size: 1.2em;
+    margin-top: 2em;
+  }
+
+  .input-group {
+  flex-direction: row; /* change from column to row */
+  align-items: center; /* ensure vertical centering */
+  padding: 0.7em 0.1em;
+}
+
+ .input-group i {
+  padding-bottom: 0; /* remove bottom padding */
+  margin-right: 0.5em; /* optional spacing */
+  font-size: 1.2rem;
+}
+
+  .input-group select {
+    margin-left: 0;
+  }
+
+   .icons {
+    display: flex;
+    justify-content: space-evenly; /* Maintain horizontal alignment */
+    flex-wrap: nowrap;             /* Prevent wrapping */
+    width: 100%;
+    margin: 0 auto;
+    padding: 1em 0;
+    overflow-x: auto;              /* Allow horizontal scroll if needed */
+    gap: 0;
+  }
+
+  .icons i {
+    padding: 0.8rem 1.5rem;
+    font-size: 1.5rem;
+    white-space: nowrap;
+  }
+
+
+  .links {
+    flex-direction: column;
+    padding: 0;
+    gap: 10px;
+    text-align: center;
+  }
+}
+
+/* Medium devices (tablets, 768px to 1023px) */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    width: 80%;
+  }
+
+  .left-side .au-logo {
+    width: 180px;
+    height: 180px;
+  }
+
+  .form-title {
+    font-size: 1.4rem;
+  }
+
+  .icons i {
+    font-size: 1.4rem;
+    padding: 0.7rem 1.2rem;
+  }
+}
+
+/* Large devices (1024px and up) */
+@media screen and (min-width: 1024px) {
+  .container {
+    width: 450px;
+  }
+
+  .left-side .au-logo {
+    width: 200px;
+    height: 200px;
+  }
+
+  .form-title {
+    font-size: 1.5rem;
+  }
+}
