@@ -6,7 +6,7 @@ include('dbcon.php');
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Add Multiple Voters - Online Voting System</title>
+  <title>Add Multiple Voters - Online Election Voting System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -19,26 +19,6 @@ include('dbcon.php');
     *,*::before,*::after{ box-sizing:border-box; }
 
     body{font-family:var(--font);background:var(--bg-color);margin:0;color:#1f2937}
-
-    /* ===== HEADER (from home.php) ===== */
-    header{background:var(--white);box-shadow:var(--shadow);padding:10px 30px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;position:relative;z-index:10}
-    .logo-section{display:flex;align-items:center;gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700;font-size:18px;color:var(--primary-color);line-height:1.2}
-    nav{display:flex;align-items:center;gap:25px}
-    .nav-item{position:relative}
-    .nav-item>a{text-decoration:none;color:var(--primary-color);font-weight:600;padding:8px 12px;border-radius:6px;display:inline-block;transition:var(--transition)}
-    .nav-item>a:hover{background:var(--primary-color);color:#fff}
-    .dropdown{display:none;position:absolute;top:100%;left:0;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:200px;padding:8px 0;z-index:99}
-    .dropdown a{display:block;padding:10px 15px;text-decoration:none;color:var(--primary-color);font-weight:500;transition:var(--transition);white-space:nowrap}
-    .dropdown a:hover{background:var(--accent-color);color:#fff}
-    .nav-item:hover>.dropdown{display:block}
-    .submenu{display:none;position:absolute;top:0;left:100%;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:220px;padding:8px 0}
-    .submenu a{padding:10px 20px}
-    .has-submenu{position:relative}
-    .has-submenu>a{display:flex;justify-content:space-between;align-items:center}
-    .has-submenu>a i.fa-chevron-right{font-size:12px;margin-left:8px}
-    .has-submenu:hover>.submenu{display:block}
 
     /* ===== PAGE ===== */
     .page-wrap{max-width:1040px;margin:28px auto;padding:0 16px}
@@ -91,53 +71,15 @@ include('dbcon.php');
 </head>
 <body>
 
-  <!-- Header -->
-  <header>
-    <div class="logo-section">
-      <img src="images/au.png" alt="Logo">
-      <div class="title">
-        ONLINE ELECTION VOTING SYSTEM<br>
-        <small>Phinma Araullo University</small>
-      </div>
-    </div>
-
-    <nav>
-      <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-        <div class="dropdown">
-          <a href="candidate_list.php">Candidates</a>
-          <a href="voter_list.php">Voters</a>
-          <div class="has-submenu">
-            <a href="#">Admin Actions <i class="fa fa-chevron-right"></i></a>
-            <div class="submenu">
-              <a href="result.php"><i class="fa fa-table" style="margin-right:8px;"></i> Election Result</a>
-              <a href="winningresult.php"><i class="fa fa-trophy" style="margin-right:8px;"></i> Final Result</a>
-              <a href="backupnreset.php"><i class="fa fa-database" style="margin-right:8px;"></i> Backup and Reset</a>
-              <a href="dashboard.php"><i class="fa fa-chart-bar" style="margin-right:8px;"></i> Analytics</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-        <div class="dropdown"><a href="profile.php">View Profile</a></div>
-      </div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-info-circle"></i> About</a>
-        <div class="dropdown">
-          <a href="about.php">System Info</a>
-          <a href="contact.php">Contact Us</a>
-        </div>
-      </div>
-      <div class="nav-item"><a href="logout.php" style="color:red;"><i class="fas fa-sign-out-alt"></i> Logout</a></div>
-    </nav>
-  </header>
-  <!-- /Header -->
+  <?php
+    // highlight "Voters" in the nav
+    $activePage = 'voters';
+    include 'header.php';
+  ?>
 
   <div class="page-wrap">
     <div class="top-row">
-      <a class="back-btn" href="voter_list.php"><i class="fa-solid fa-arrow-left"></i> Back to Voters</a>
+      <a class="back-btn" href="voters.php"><i class="fa-solid fa-arrow-left"></i> Back to Voters</a>
     </div>
 
     <div class="card">
@@ -268,7 +210,7 @@ include('dbcon.php');
           success: function(res){
             if(res && res.success){
               showNotification({ message: `Saved ${res.saved} voter(s).`, type: "success", autoClose: true, duration: 4 });
-              setTimeout(()=> location.href='voter_list.php', 1200);
+              setTimeout(()=> location.href='voters.php', 1200);
             } else {
               const msg = (res && (res.message || res.error)) ? (res.message || res.error) : 'Save failed.';
               const list = (res && res.errors && res.errors.length) ? `\n\nDetails:\n• `+res.errors.join('\n• ') : '';

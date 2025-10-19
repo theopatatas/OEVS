@@ -14,6 +14,7 @@ function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
   <title>Backup & Restore - Online Voting System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- If header.php already loads these, you can remove them -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -29,35 +30,6 @@ function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#0b1324}
-
-    /* Sticky header like the other pages */
-    header{
-      position:sticky; top:0; z-index:1000;
-      background:var(--white); box-shadow:var(--shadow);
-      padding:10px 30px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
-    }
-    .logo-section{display:flex;align-items:center;gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700;font-size:18px;color:var(--primary);line-height:1.2}
-    nav{display:flex;align-items:center;gap:25px}
-    .nav-item{position:relative}
-    .nav-item>a{
-      text-decoration:none;color:var(--primary);font-weight:600;padding:8px 12px;border-radius:6px;display:inline-block;transition:.25s
-    }
-    .nav-item>a:hover{background:var(--primary);color:#fff}
-    .dropdown{
-      display:none;position:absolute;top:100%;left:0;background:var(--white);box-shadow:var(--shadow);
-      border-radius:6px;min-width:220px;padding:8px 0;z-index:99
-    }
-    .dropdown a{display:block;padding:10px 15px;text-decoration:none;color:var(--primary);font-weight:500;white-space:nowrap}
-    .dropdown a:hover{background:var(--accent);color:#fff}
-    .nav-item:hover>.dropdown{display:block}
-    .submenu{display:none;position:absolute;top:0;left:100%;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:220px;padding:8px 0}
-    .submenu a{padding:10px 20px}
-    .has-submenu{position:relative}
-    .has-submenu>a{display:flex;justify-content:space-between;align-items:center}
-    .has-submenu>a i{font-size:12px;margin-left:8px}
-    .has-submenu:hover>.submenu{display:block}
 
     .content{max-width:1000px;margin:24px auto;padding:0 16px}
 
@@ -88,63 +60,15 @@ function h($s){ return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
     .file-item:last-child{border-bottom:0}
 
     footer{color:#666;text-align:center;padding:20px 0}
-    @media (max-width:768px){
-      nav{flex-direction:column;gap:0}
-      .nav-item{width:100%}
-      .nav-item>a{width:100%}
-      .dropdown,.submenu{position:relative;left:0;box-shadow:none}
-    }
   </style>
 </head>
 <body>
 
-  <!-- Header copied from home.php -->
-  <header>
-    <div class="logo-section">
-      <img src="images/au.png" alt="Logo">
-      <div class="title">
-        ONLINE ELECTION VOTING SYSTEM<br>
-        <small>Phinma Araullo University</small>
-      </div>
-    </div>
-    <nav>
-      <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-        <div class="dropdown">
-          <a href="candidate_list.php">Candidates</a>
-          <a href="voter_list.php">Voters</a>
-          <div class="has-submenu">
-            <a href="#">Admin Actions <i class="fa fa-chevron-right"></i></a>
-            <div class="submenu">
-              <a href="result.php"><i class="fa fa-table" style="margin-right:8px;"></i> Election Result</a>
-              <a href="winningresult.php"><i class="fa fa-trophy" style="margin-right:8px;"></i> Final Result</a>
-              <a href="backupnreset.php"><i class="fa fa-database" style="margin-right:8px;"></i> Backup and Reset</a>
-              <a href="dashboard.php"><i class="fa fa-chart-bar" style="margin-right:8px;"></i> Analytics</a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-        <div class="dropdown"><a href="profile.php">View Profile</a></div>
-      </div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-info-circle"></i> About</a>
-        <div class="dropdown">
-          <a href="about.php">System Info</a>
-          <a href="contact.php">Contact Us</a>
-        </div>
-      </div>
-
-      <div class="nav-item">
-        <a href="logout.php" style="color:var(--danger)"><i class="fas fa-sign-out-alt"></i> Logout</a>
-      </div>
-    </nav>
-  </header>
+  <?php
+    // Optional: tell header which tab to highlight
+    $activePage = 'backup';
+    include 'header.php';
+  ?>
 
   <div class="content">
     <h2 class="lead">Backup & Restore Options</h2>

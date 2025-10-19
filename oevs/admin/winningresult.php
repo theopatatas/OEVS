@@ -43,6 +43,7 @@ if ($maxVotes === 0) $maxVotes = 1;
   <title>Final Result - Online Voting System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- If header.php already loads these, you can remove them -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -58,35 +59,6 @@ if ($maxVotes === 0) $maxVotes = 1;
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:#0b1324}
-
-    /* Sticky header (same as home/result) */
-    header{
-      position:sticky; top:0; z-index:1000;
-      background:var(--white); box-shadow:var(--shadow);
-      padding:10px 30px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
-    }
-    .logo-section{display:flex;align-items:center;gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700;font-size:18px;color:var(--primary);line-height:1.2}
-    nav{display:flex;align-items:center;gap:25px}
-    .nav-item{position:relative}
-    .nav-item>a{
-      text-decoration:none;color:var(--primary);font-weight:600;padding:8px 12px;border-radius:6px;display:inline-block;transition:.25s
-    }
-    .nav-item>a:hover{background:var(--primary);color:#fff}
-    .dropdown{
-      display:none;position:absolute;top:100%;left:0;background:var(--white);box-shadow:var(--shadow);
-      border-radius:6px;min-width:220px;padding:8px 0;z-index:99
-    }
-    .dropdown a{display:block;padding:10px 15px;text-decoration:none;color:var(--primary);font-weight:500;transition:.2s;white-space:nowrap}
-    .dropdown a:hover{background:var(--accent);color:#fff}
-    .nav-item:hover>.dropdown{display:block}
-    .submenu{display:none;position:absolute;top:0;left:100%;background:var(--white);box-shadow:var(--shadow);border-radius:6px;min-width:220px;padding:8px 0}
-    .submenu a{padding:10px 20px}
-    .has-submenu{position:relative}
-    .has-submenu>a{display:flex;justify-content:space-between;align-items:center}
-    .has-submenu>a i{font-size:12px;margin-left:8px}
-    .has-submenu:hover>.submenu{display:block}
 
     .content{max-width:1200px;margin:24px auto;padding:0 16px}
 
@@ -123,7 +95,7 @@ if ($maxVotes === 0) $maxVotes = 1;
     .search{display:flex;align-items:center;background:#fff;border:1px solid #d0d7de;border-radius:8px;padding:0 10px}
     .search input{border:0;outline:0;padding:9px 8px;font-size:14px;width:220px}
 
-    /* Cards / grid (same as result) */
+    /* Cards / grid */
     .section{background:var(--white);box-shadow:var(--shadow);border-radius:12px;padding:24px}
     .section h2{margin:0 0 14px;text-align:center}
     .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
@@ -151,59 +123,17 @@ if ($maxVotes === 0) $maxVotes = 1;
     footer{color:#666;text-align:center;padding:20px 0}
 
     @media (max-width:768px){
-      nav{flex-direction:column;gap:0}
-      .nav-item{width:100%}
-      .nav-item>a{width:100%}
-      .dropdown,.submenu{position:relative;left:0;box-shadow:none}
       .search input{width:140px}
     }
   </style>
 </head>
 <body>
 
-  <!-- Header (copied from home.php content) -->
-  <header>
-    <div class="logo-section">
-      <img src="images/au.png" alt="Logo">
-      <div class="title">
-        ONLINE ELECTION VOTING SYSTEM<br>
-        <small>Phinma Araullo University</small>
-      </div>
-    </div>
-    <nav>
-      <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-        <div class="dropdown">
-          <a href="candidate_list.php">Candidates</a>
-          <a href="voter_list.php">Voters</a>
-          <div class="has-submenu">
-            <a href="#">Admin Actions <i class="fa fa-chevron-right"></i></a>
-            <div class="submenu">
-              <a href="result.php"><i class="fa fa-table" style="margin-right:8px;"></i> Election Result</a>
-              <a href="winningresult.php"><i class="fa fa-trophy" style="margin-right:8px;"></i> Final Result</a>
-              <a href="backupnreset.php"><i class="fa fa-database" style="margin-right:8px;"></i> Backup and Reset</a>
-              <a href="dashboard.php"><i class="fa fa-chart-bar" style="margin-right:8px;"></i> Analytics</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-        <div class="dropdown"><a href="profile.php">View Profile</a></div>
-      </div>
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-info-circle"></i> About</a>
-        <div class="dropdown">
-          <a href="about.php">System Info</a>
-          <a href="contact.php">Contact Us</a>
-        </div>
-      </div>
-      <div class="nav-item">
-        <a href="logout.php" style="color:var(--danger)"><i class="fas fa-sign-out-alt"></i> Logout</a>
-      </div>
-    </nav>
-  </header>
+  <?php
+    // Optional: highlight the current menu in header.php
+    $activePage = 'final_result';
+    include 'header.php';
+  ?>
 
   <div class="content">
     <!-- Toolbar -->
@@ -331,12 +261,10 @@ if ($maxVotes === 0) $maxVotes = 1;
     });
     document.addEventListener('click',e=>{ if(e.target.classList.contains('modal')) e.target.classList.remove('open'); });
 
-    // Live refresh: expects get_results.php to return JSON array of TOP winners with keys:
-    // CandidateID, FirstName, LastName, Position, Year, Party, vote_count, Photo, Qualification
+    // Live refresh from get_results.php
     function loadResults(){
       $.getJSON('get_results.php', function(data){
         if(!data || !data.length) return;
-        // recompute max for scale
         let maxVotes = Math.max.apply(Math, data.map(c => parseInt(c.vote_count||0)));
         if(!isFinite(maxVotes) || maxVotes<=0) maxVotes = 1;
 

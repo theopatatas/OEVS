@@ -64,25 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
     html,body{margin:0;padding:0}
     body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--ink)}
 
-    /* Header (mirrors home.php) */
-    header{background:var(--panel);box-shadow:var(--shadow);padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
-    .logo-section{display:flex;align-items:center;gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700;font-size:18px;color:var(--primary);line-height:1.2}
-    nav{display:flex;align-items:center;gap:20px}
-    .nav-item{position:relative}
-    .nav-item>a{color:var(--primary);text-decoration:none;font-weight:600;padding:8px 12px;border-radius:8px;display:inline-flex;gap:8px;align-items:center;transition:background .2s}
-    .nav-item>a:hover{background:rgba(0,47,108,.06)}
-    .dropdown{display:none;position:absolute;top:100%;left:0;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:220px;padding:8px 0;box-shadow:var(--shadow);z-index:20}
-    .dropdown a{display:block;padding:10px 14px;color:var(--primary);text-decoration:none;transition:background .2s}
-    .dropdown a:hover{background:rgba(11,87,207,.08)}
-    .nav-item:hover>.dropdown{display:block}
-    .submenu{display:none;position:absolute;top:0;left:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:230px;padding:8px 0;box-shadow:var(--shadow)}
-    .has-submenu{position:relative}
-    .has-submenu>a{display:flex;justify-content:space-between;align-items:center}
-    .has-submenu:hover>.submenu{display:block}
-    .nav-item a[href="profile.php"]{background:rgba(0,47,108,.06)}
-
     /* Layout */
     .page{max-width:1120px;margin:36px auto;padding:0 16px}
     .page-title{display:flex;align-items:center;gap:10px;color:var(--primary)}
@@ -139,58 +120,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save'])) {
   </style>
 </head>
 <body>
-  <!-- Header -->
-  <header>
-    <div class="logo-section">
-      <img src="images/au.png" alt="Logo">
-      <div class="title">
-        ONLINE ELECTION VOTING SYSTEM<br>
-        <small>Phinma Araullo University</small>
-      </div>
-    </div>
-
-    <nav>
-      <div class="nav-item">
-        <a href="home.php"><i class="fas fa-home"></i> Home</a>
-      </div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-        <div class="dropdown">
-          <a href="candidate_list.php">Candidates</a>
-          <a href="voter_list.php">Voters</a>
-          <div class="has-submenu">
-            <a href="#">Admin Actions <i class="fa fa-chevron-right"></i></a>
-            <div class="submenu">
-              <a href="result.php"><i class="fa fa-table" style="margin-right:8px;"></i> Election Result</a>
-              <a href="winningresult.php"><i class="fa fa-trophy" style="margin-right:8px;"></i> Final Result</a>
-              <a href="backupnreset.php"><i class="fa fa-database" style="margin-right:8px;"></i> Backup and Reset</a>
-              <a href="dashboard.php"><i class="fa fa-chart-bar" style="margin-right:8px;"></i> Analytics</a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-        <div class="dropdown">
-          <a href="profile.php">View Profile</a>
-        </div>
-      </div>
-
-      <div class="nav-item">
-        <a href="#"><i class="fas fa-info-circle"></i> About</a>
-        <div class="dropdown">
-          <a href="about.php">System Info</a>
-          <a href="contact.php">Contact Us</a>
-        </div>
-      </div>
-
-      <div class="nav-item">
-        <a href="logout.php" style="color:#e11d48"><i class="fas fa-sign-out-alt"></i> Logout</a>
-      </div>
-    </nav>
-  </header>
+  <?php
+    // Use the shared header (no Contact Us, correct hover)
+    $activePage = 'profile';
+    include 'header.php';
+  ?>
 
   <!-- Content -->
   <div class="page">
