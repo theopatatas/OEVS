@@ -15,6 +15,7 @@ $COL_LN       = 'LastName';
 $COL_YEAR     = 'Year';
 $COL_COURSE   = 'Course';
 $COL_DEPT     = 'Department';
+$COL_CAMPUS   = 'Campus';  // <— NEW
 
 $VOTES_TABLES_CANDIDATES = ['votes','ballots','ballot_receipts'];
 $VOTE_VOTER_COL_OPTIONS  = [$PK_VOTER,'voter_id','student_id'];
@@ -23,6 +24,7 @@ $VOTE_VOTER_COL_OPTIONS  = [$PK_VOTER,'voter_id','student_id'];
 $status     = isset($_GET['status'])     ? trim($_GET['status'])     : 'All';
 $department = isset($_GET['department']) ? trim($_GET['department']) : 'All';
 $course     = isset($_GET['course'])     ? trim($_GET['course'])     : 'All';
+$campusRaw  = isset($_GET['campus'])     ? trim($_GET['campus'])     : 'All'; // UI value
 $q          = isset($_GET['q'])          ? trim($_GET['q'])          : '';
 
 /* ---------- Helpers ---------- */
@@ -59,6 +61,7 @@ $COURSE_ACRO = [
   'Bachelor of Science in Civil Engineering'=>'BSCE',
   'Bachelor of Science in Nursing'=>'BSN',
   'Bachelor of Science in Pharmacy'=>'BSP',
+  'Bachelor of Science in Information Technology'=>'BSIT',
 ];
 
 /* ---------- distinct lists ---------- */
@@ -79,6 +82,7 @@ while ($dc && ($r=mysqli_fetch_assoc($dc))) {
   if (!isset($deptCourseMap[$d])) $deptCourseMap[$d]=[];
   $deptCourseMap[$d][$c]=true;
 }
+
 /* courses to show initially (based on selected department) */
 $courses = ['All'];
 if ($department==='All') {
@@ -87,6 +91,9 @@ if ($department==='All') {
 } else {
   if (!empty($deptCourseMap[$department])) { $courses = array_merge(['All'], array_keys($deptCourseMap[$department])); }
 }
+
+/* Campus filter options (fixed list so they show even if DB is empty) */
+$campusOptions = ['All','Au Main','Au South','Au San Jose'];
 
 /* ---------- delete (optional) ---------- */
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_id'],$_POST['csrf_token'])) {
@@ -104,8 +111,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['delete_id'],$_POST['csr
 /* ---------- main query (safe joins) ---------- */
 $where=[]; $params=[]; $types='';
 
-if ($department!=='All'){ $where[]="v.{$COL_DEPT}=?";   $params[]=$department; $types.='s'; }
-if ($course!=='All'){     $where[]="v.{$COL_COURSE}=?"; $params[]=$course;     $types.='s'; }
+if ($department!=='All'){ $where[]="v.{$COL_DEPT}=?";    $params[]=$department; $types.='s'; }
+if ($course!=='All'){     $where[]="v.{$COL_COURSE}=?";  $params[]=$course;     $types.='s'; }
+if ($campusRaw!=='All'){  $where[]="COALESCE(v.{$COL_CAMPUS},'')=?"; $params[]=$campusRaw; $types.='s'; } // <— campus filter
 
 $selectStatus=''; $statusConstraint='';
 if ($voteTable && $voteVoterCol){
@@ -151,7 +159,6 @@ $flash=_take_flash();
   <meta charset="UTF-8">
   <title>Voters</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- If header.php already loads these, you can remove them -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
@@ -162,7 +169,7 @@ $flash=_take_flash();
     .card{background:#fff; border:1px solid #e8eef7; box-shadow:var(--shadow); border-radius:var(--radius); padding:12px}
 
     /* Filters */
-    .filters .row{display:grid; grid-template-columns: repeat(3, minmax(220px,1fr)) auto; gap:10px; align-items:end}
+    .filters .row{display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)) auto; gap:10px; align-items:end}
     .field{display:flex; flex-direction:column; gap:6px}
     .field label{font-size:12px; color:var(--muted); font-weight:600}
     select{appearance:none; padding:12px 14px; border-radius:12px; border:1px solid #d8e2f0; background:#fff; color:#0d2f66; outline:none}
@@ -189,14 +196,13 @@ $flash=_take_flash();
     .flash.success{background:#e9f8ef; color:#146c2e; border:1px solid #b6ecc3}
     .flash.error{background:#fdecec; color:#9f2d2d; border:1px solid #f6c7c7}
 
-    @media (max-width:1100px){ .filters .row{grid-template-columns:1fr 1fr auto} }
+    @media (max-width:1100px){ .filters .row{grid-template-columns:1fr 1fr 1fr auto} }
     @media (max-width:700px){ .filters .row{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
 
   <?php
-    // highlight current page if your header supports it
     $activePage = 'voters';
     include 'header.php';
   ?>
@@ -224,6 +230,15 @@ $flash=_take_flash();
         </div>
 
         <div class="field">
+          <label for="campus">Campus</label>
+          <select id="campus" name="campus">
+            <?php foreach ($campusOptions as $c): ?>
+              <option value="<?php echo $esc($c); ?>" <?php echo ($c===$campusRaw)?'selected':''; ?>><?php echo $esc($c); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
           <label for="status">Status</label>
           <select id="status" name="status">
             <?php foreach ($statuses as $s): ?>
@@ -241,7 +256,7 @@ $flash=_take_flash();
       <div class="controls">
         <div class="search">
           <i class="fa fa-search icon-left"></i>
-          <input id="liveSearch" type="text" value="<?php echo $esc($q); ?>" placeholder="Search name, ID, course, department, year, status…">
+          <input id="liveSearch" type="text" value="<?php echo $esc($q); ?>" placeholder="Search name, ID, course, department, campus, year, status…">
           <i id="clearSearch" class="fa fa-xmark clear" title="Clear"></i>
         </div>
         <a class="btn" href="new_voter.php"><i class="fa fa-user-plus"></i> Add Voter</a>
@@ -264,19 +279,21 @@ $flash=_take_flash();
             <th>Year</th>
             <th>Course</th>
             <th>Department</th>
+            <th>Campus</th>
             <th>Status</th>
             <th style="width:200px;">Actions</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($voters)): ?>
-            <tr class="no-rows"><td colspan="8" style="text-align:center;color:#666;padding:24px;">No voters found.</td></tr>
+            <tr class="no-rows"><td colspan="9" style="text-align:center;color:#666;padding:24px;">No voters found.</td></tr>
           <?php else: foreach ($voters as $row):
             $id    = (int)($row[$PK_VOTER] ?? 0);
             $yr    = $row[$COL_YEAR] ?? '';
             $courseFull = $row[$COL_COURSE] ?? '';
             $courseAcr  = $COURSE_ACRO[$courseFull] ?? $courseFull;
             $dept  = $row[$COL_DEPT] ?? '';
+            $camp  = trim((string)($row[$COL_CAMPUS] ?? ''));  // blank if NULL
             $ln    = $row[$COL_LN] ?? '';
             $fn    = $row[$COL_FN] ?? '';
             $st    = $row['_Status'] ?? 'Unvoted';
@@ -288,6 +305,7 @@ $flash=_take_flash();
               <td><?php echo $esc($yr); ?></td>
               <td title="<?php echo $esc($courseFull); ?>"><?php echo $esc($courseAcr); ?></td>
               <td><?php echo $esc($dept); ?></td>
+              <td><?php echo $esc($camp); ?></td>
               <td><?php echo $esc($st); ?></td>
               <td>
                 <a class="btn" href="edit_voter.php?id=<?php echo $id; ?>"><i class="fa fa-pen"></i> Edit</a>
@@ -313,6 +331,7 @@ $flash=_take_flash();
   const selDept = document.getElementById('department');
   const selCourse = document.getElementById('course');
   const selStatus = document.getElementById('status');
+  const selCampus = document.getElementById('campus');
 
   // Dept -> Courses map from PHP
   const map = <?php
@@ -321,15 +340,16 @@ $flash=_take_flash();
     echo json_encode($out, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
   ?>;
 
+  const allCourses = <?php
+    $all = [];
+    $qc2 = mysqli_query($conn,"SELECT DISTINCT {$COL_COURSE} AS c FROM {$TABLE_VOTERS} WHERE {$COL_COURSE} IS NOT NULL AND TRIM({$COL_COURSE})<>'' ORDER BY {$COL_COURSE}");
+    while ($qc2 && ($r=mysqli_fetch_assoc($qc2))) $all[]=$r['c'];
+    echo json_encode($all, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  ?>;
+
   function rebuildCourses(dept, keepValue){
     const current = keepValue ? selCourse.value : 'All';
-    const opts = ['All'].concat(dept==='All' ? (<?php
-        $all = [];
-        $qc2 = mysqli_query($conn,"SELECT DISTINCT {$COL_COURSE} AS c FROM {$TABLE_VOTERS} WHERE {$COL_COURSE} IS NOT NULL AND TRIM({$COL_COURSE})<>'' ORDER BY {$COL_COURSE}");
-        while ($qc2 && ($r=mysqli_fetch_assoc($qc2))) $all[]=$r['c'];
-        echo json_encode($all, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-      ?>) : (map[dept] || [])
-    );
+    const opts = ['All'].concat(dept==='All' ? allCourses : (map[dept] || []));
     selCourse.innerHTML = '';
     opts.forEach(v=>{
       const o = document.createElement('option');
@@ -339,13 +359,10 @@ $flash=_take_flash();
     });
   }
 
-  selDept.addEventListener('change', ()=>{
-    rebuildCourses(selDept.value, false);
-    form.submit();
-  });
-
+  selDept.addEventListener('change', ()=>{ rebuildCourses(selDept.value, false); form.submit(); });
   selCourse.addEventListener('change', ()=> form.submit());
   selStatus.addEventListener('change', ()=> form.submit());
+  selCampus.addEventListener('change', ()=> form.submit());
 
   rebuildCourses(selDept.value, true);
 })();
@@ -364,7 +381,7 @@ $flash=_take_flash();
       n = document.createElement('tr');
       n.className = 'no-rows';
       const td = document.createElement('td');
-      td.colSpan = 8; td.style.textAlign='center'; td.style.color='#666'; td.style.padding='24px';
+      td.colSpan = 9; td.style.textAlign='center'; td.style.color='#666'; td.style.padding='24px';
       td.textContent = 'No voters match your search.';
       n.appendChild(td); tbody.appendChild(n);
     }

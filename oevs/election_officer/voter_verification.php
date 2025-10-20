@@ -1,346 +1,408 @@
 <?php
+// voter_verification.php — dept↔course filters (like voters.php), course acronyms in table,
+// status/department swapped, Reset beside Status
 include('session.php');
 include('dbcon.php');
+if (file_exists(__DIR__ . '/header.php')) include(__DIR__ . '/header.php');
+
+/* === Department → Courses (FULL names) === */
+$deptCourses = [
+  'CMA'  => [
+    '__COLLEGE__' => 'College of Management and Accountancy',
+    'Bachelor of Science in Accountancy',
+    'Bachelor of Science in Business Administration',
+    'Bachelor of Science in Management Accounting',
+    'Bachelor of Science in Accounting Information System',
+    'Bachelor of Science in Entrepreneurship',
+    'Bachelor of Science in Hospitality Management',
+    'Bachelor of Science in Tourism Management',
+  ],
+  'CELA' => [
+    '__COLLEGE__' => 'College of Education and Liberal Arts',
+    'Bachelor of Elementary Education',
+    'Bachelor of Secondary Education',
+    'Bachelor of Arts in Political Science',
+  ],
+  'CCJE' => [
+    '__COLLEGE__' => 'College of Criminal Justice Education',
+    'Bachelor of Science in Criminology',
+  ],
+  'COE'  => [
+    '__COLLEGE__' => 'College of Engineering',
+    'Bachelor of Science in Civil Engineering',
+  ],
+  'CAHS' => [
+    '__COLLEGE__' => 'College of Allied Health Sciences',
+    'Bachelor of Science in Nursing',
+    'Bachelor of Science in Pharmacy',
+    'Bachelor of Science in Midwifery',
+  ],
+  'CIT'  => [
+    '__COLLEGE__' => 'College of Information Technology',
+    'Bachelor of Science in Information Technology',
+  ],
+  'CAS'  => [
+    '__COLLEGE__' => 'College of Arts and Sciences',
+    // CAS = all courses (we’ll compute in JS)
+  ],
+];
+
+/* === Course FULL → Acronym === */
+$COURSE_ACRO = [
+  'Bachelor of Science in Accountancy'=>'BSA',
+  'Bachelor of Science in Hospitality Management'=>'BSHM',
+  'Bachelor of Science in Tourism Management'=>'BSTM',
+  'Bachelor of Science in Entrepreneurship'=>'BSEntrep',
+  'Bachelor of Science in Business Administration'=>'BSBA',
+  'Bachelor of Science in Management Accounting'=>'BSMA',
+  'Bachelor of Science in Accounting Information System'=>'BSAIS',
+  'Bachelor of Elementary Education'=>'BEEd',
+  'Bachelor of Secondary Education'=>'BSEd',
+  'Bachelor of Arts in Political Science'=>'AB PolSci',
+  'Bachelor of Science in Criminology'=>'BSCrim',
+  'Bachelor of Science in Civil Engineering'=>'BSCE',
+  'Bachelor of Science in Nursing'=>'BSN',
+  'Bachelor of Science in Pharmacy'=>'BSP',
+  'Bachelor of Science in Information Technology'=>'BSIT',
+];
+
+/* === Helpers === */
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+function course_to_acro($v, $MAP){
+  $v = trim((string)$v);
+  if ($v==='') return '';
+  if (isset($MAP[$v])) return $MAP[$v];
+  if (in_array($v, $MAP, true)) return $v; // already an acronym
+  return $v; // fallback
+}
+
+/* === Optional server-side narrowing via ?view= === */
+$view = isset($_GET['view']) ? strtolower(trim($_GET['view'])) : 'all';
+if (!in_array($view, ['all','verified','unverified'], true)) $view = 'all';
+
+$where = '';
+if ($view === 'verified') {
+  $where = " WHERE COALESCE(Verified,'') LIKE 'Verified'";
+} elseif ($view === 'unverified') {
+  $where = " WHERE COALESCE(Verified,'') NOT LIKE 'Verified'";
+}
+
+$sql = "SELECT * FROM voters{$where} ORDER BY VoterID ASC";
+$res = mysqli_query($conn, $sql);
+if (!$res) { die('Query error: '.h(mysqli_error($conn))); }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Voter Verification - Online Voting System</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-  <style>
-    :root{
-      --primary:#002f6c; --accent:#0056b3; --bg:#f4f6f8; --white:#fff; --ink:#0d2343;
-      --muted:#6c7b90; --border:#e6ebf4; --shadow:0 8px 24px rgba(0,0,0,.08); --ring:#9ec5ff;
-      --success:#e6f6ec; --success-ink:#127c41; --table-head:#0a2e5c; --danger:#ef4351;
-      --badge:#eef2f7; --badge-ink:#344a6a; --badge-br:#e1e8f5;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);margin:0;color:var(--ink)}
-    a{text-decoration:none;color:inherit}
+<meta charset="UTF-8" />
+<title>Voter Verification - Online Voting System</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#f4f6f8; --white:#fff; --ink:#0f1b2d; --muted:#6a7b91; --border:#e6ebf4;
+  --brand:#0a3b8e; --brand-2:#0f56c6; --ring:#cfe1ff;
+}
+*{box-sizing:border-box}
+html,body{margin:0; background:var(--bg); color:var(--ink); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.container{max-width:1400px; margin:24px auto; padding:0 16px}
 
-    /* ===== Header from home.php (smart sticky) ===== */
-    header.smart-header{
-      background:var(--white); box-shadow:var(--shadow); border-bottom:1px solid var(--border);
-      padding:10px 22px; display:flex; justify-content:space-between; align-items:center; gap:16px;
-      position:sticky; top:0; z-index:1000; transition:transform .25s ease; will-change:transform;
-    }
-    header.smart-header.header-hide{ transform:translateY(-120%); }
-    .logo-section{display:flex; align-items:center; gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700; font-size:16px; color:var(--primary); line-height:1.1}
-    .logo-section .title small{font-weight:600; font-size:12px; color:var(--accent)}
-    nav{display:flex; align-items:center; gap:12px}
-    .nav-item{position:relative}
-    .nav-item > a{display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px; font-weight:700; color:var(--primary); transition:.2s}
-    .nav-item > a i{width:18px; text-align:center}
-    .nav-item > a:hover,.nav-item > a:focus-visible{background:var(--primary); color:#fff; outline:none}
-    .nav-item.logout > a{color:#d92d2d; font-weight:800}
-    .nav-item.logout > a:hover,.nav-item.logout > a:focus-visible{background:#ffe9e9; color:#b61e1e}
+/* ===== FILTER CARD (matches voters.php) ===== */
+.card{
+  background:#fff; border:1px solid var(--border); border-radius:16px;
+  box-shadow:0 10px 24px rgba(10,59,142,.06);
+}
+.filters{
+  display:grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: auto auto;
+  gap:16px;
+  padding:16px;
+}
+/* Row 1: Department · Course · Status + Reset (inline) */
+.filters .field:nth-of-type(1){ grid-column: span 3; } /* Department */
+.filters .field:nth-of-type(2){ grid-column: span 3; } /* Course     */
+.filters .field:nth-of-type(3){ grid-column: span 3; } /* Status     */
+.filters .inline-reset{ grid-column: span 3; display:flex; align-items:flex-end; justify-content:flex-end; }
 
-    /* Dropdowns */
-    .dropdown,.submenu{
-      display:none; position:absolute; top:calc(100% - 2px); left:0; min-width:240px; background:#fff;
-      border:1px solid #e7eef7; border-radius:14px; box-shadow:0 10px 30px rgba(13,35,67,.12), 0 2px 6px rgba(13,35,67,.06);
-      padding:6px; z-index:999;
-    }
-    .nav-item:hover > .dropdown,.nav-item:focus-within > .dropdown{display:block}
-    .dropdown a,.submenu a{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--primary); font-weight:600; white-space:nowrap}
-    .dropdown a:hover,.submenu a:hover,.dropdown a:focus-visible,.submenu a:focus-visible{background:var(--accent); color:#fff}
-    .dropdown .divider{height:1px; background:#e9eff7; margin:6px 4px}
-    .has-submenu{position:relative}
-    .submenu{position:static; border:none; box-shadow:none; padding:4px 0 0}
-    .submenu a{padding-left:36px}
-    .has-submenu > a .chev{margin-left:auto; transition:transform .2s}
-    .has-submenu:hover > .submenu,.has-submenu:focus-within > .submenu{display:block}
-    .has-submenu:hover > a .chev,.has-submenu:focus-within > a .chev{transform:rotate(90deg)}
+/* Row 2: Search (wide) */
+.filters .search{ grid-column: 1 / span 12; position:relative; }
 
-    /* ===== Page ===== */
-    main{padding:22px 16px}
-    .container{max-width:1100px; margin:0 auto}
-    .card{background:#fff; border:1px solid var(--border); border-radius:16px; box-shadow:var(--shadow); padding:14px; overflow:visible}
+.label{display:block; font-size:13px; font-weight:700; color:#2a3a52; margin:4px 0 8px;}
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;}
 
-    /* Toolbar */
-    .toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:6px 8px 12px}
-    .left-actions{display:flex; align-items:center; gap:10px}
-    .right-actions{display:flex; align-items:center; gap:10px}
-    .btn{display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); background:#f7f9fc; color:#0b1b36; font-weight:700; border-radius:10px; padding:9px 12px; cursor:pointer}
-    .btn:hover{background:#eef4ff}
+.control{
+  width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:#fff; outline:none;
+}
+.control:focus{border-color:var(--brand-2); box-shadow:0 0 0 3px var(--ring);}
 
-    /* Filter dropdown in toolbar */
-    .filter-wrap{position:relative}
-    .filter-menu{display:none; position:absolute; top:calc(100% + 6px); left:0; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); min-width:240px; padding:6px; z-index:5}
-    .filter-menu a{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; font-weight:600; color:#0b1b36}
-    .filter-menu a:hover{background:var(--accent); color:#fff}
+/* Search with icon */
+.search .control{ padding-left:42px; }
+.search .icon{ position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#9aa8bc; font-size:14px; }
 
-    /* Inputs */
-    .control{display:flex; align-items:center; gap:10px}
-    select,input[type="search"]{height:36px; border:1px solid var(--border); border-radius:10px; padding:0 10px; font:inherit; outline:none}
-    select:focus,input[type="search"]:focus{box-shadow:0 0 0 3px var(--ring); border-color:#b6d6ff}
+/* Buttons */
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:11px 16px; border-radius:12px; border:1px solid var(--border);
+  background:#fff; cursor:pointer; color:#0f1b2d; font-weight:700;
+}
+.btn:focus{ outline:0; box-shadow:0 0 0 3px var(--ring); }
 
-    /* Table */
-    table{width:100%; border-collapse:collapse}
-    thead th{background:var(--table-head); color:#fff; text-align:left; font-weight:700; padding:12px 14px; font-size:14px}
-    tbody td{padding:14px; border-bottom:1px solid #edf1f7; vertical-align:middle; font-size:14px}
-    tbody tr:hover{background:#fbfdff}
-    .badge{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; background:var(--badge); color:var(--badge-ink); border:1px solid var(--badge-br)}
-    .badge-success{background:var(--success); color:var(--success-ink); border-color:#bfe9cf}
+/* ===== TABLE (same base as voters.php) ===== */
+.table-card{margin-top:18px; border-radius:16px; overflow:hidden; background:#fff; border:1px solid var(--border); box-shadow:0 10px 24px rgba(10,59,142,.06)}
+.table-wrap{overflow:auto}
+table{width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed;}
+thead th{background:linear-gradient(180deg,#0a3b8e 0%, #0f56c6 100%); color:#fff; text-align:left; font-weight:700; padding:14px 16px; font-size:14px}
+tbody td{padding:14px 16px; border-top:1px solid var(--border); font-size:14px; color:#11223b; background:#fff; word-wrap:break-word}
+tbody tr:hover td{background:#f9fbff}
 
-    /* Action buttons */
-    .btn-danger{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:#ffe8ea; color:#b61e1e; border:1px solid #ffd1d6; border-radius:999px; font-weight:700}
-    .btn-primary{display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:#e7f0ff; color:#0a2e5c; border:1px solid #cfe0ff; border-radius:999px; font-weight:700}
-    .btn-danger i,.btn-primary i{width:14px}
+/* Status badges: green = Verified, red = Unverified */
+.badge{display:inline-block; padding:6px 10px; font-weight:700; border-radius:999px; font-size:12px}
+.badge-voted{background:#e9f8ef; color:#0f6d2c; border:1px solid #b9ebc8}      /* Verified */
+.badge-unvoted{background:#ffe9e9; color:#962020; border:1px solid #ffc5c5}   /* Unverified */
 
-    /* Footer / pagination */
-    .table-footer{display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:12px 8px 4px; color:#445c7a; font-size:14px}
-    .pager{display:inline-flex; align-items:center; gap:6px}
-    .pager button{width:34px; height:34px; border:1px solid var(--border); border-radius:8px; background:#fff; cursor:pointer}
-    .pager button:hover{background:#f1f6ff}
+/* Footer */
+.footer{display:flex; justify-content:space-between; align-items:center; padding:10px 14px; color:#6a7b91; font-size:12px}
+.pill{border:1px dashed var(--border); padding:6px 10px; border-radius:999px; background:#fff}
 
-    footer{text-align:center; padding:20px 0; color:var(--muted); font-size:14px}
-
-    @media (max-width:768px){
-      header.smart-header{flex-direction:column; align-items:stretch; gap:8px}
-      nav{flex-direction:column; gap:6px}
-      .nav-item{width:100%}
-      .nav-item > a{width:100%}
-      .dropdown{position:relative; top:0; left:0; margin:6px 0 0 0; box-shadow:none}
-      .submenu{position:relative}
-      .toolbar{flex-direction:column; align-items:stretch}
-      .right-actions{justify-content:space-between}
-    }
-  </style>
+/* Responsive */
+@media (max-width:1100px){
+  .filters .field:nth-of-type(1),
+  .filters .field:nth-of-type(2),
+  .filters .field:nth-of-type(3),
+  .filters .inline-reset{ grid-column: span 6; }
+}
+@media (max-width:640px){
+  .filters{ grid-template-columns: repeat(6, 1fr); }
+  .filters .field, .filters .inline-reset, .filters .search{ grid-column: span 6; }
+}
+</style>
 </head>
 <body>
+<div class="container">
 
-<!-- ===== Header (matches home.php) ===== -->
-<header class="smart-header">
-  <div class="logo-section">
-    <img src="images/au.png" alt="Logo" />
-    <div class="title">ONLINE ELECTION VOTING SYSTEM<br /><small>Phinma Araullo University</small></div>
+  <!-- FILTER BAR -->
+  <div class="card">
+    <div class="filters">
+      <div class="field">
+        <label class="label">Department</label>
+        <select id="fDepartment" class="control">
+          <option value="">All</option>
+          <?php foreach(array_keys($deptCourses) as $deptKey): ?>
+            <option value="<?= h(strtolower($deptKey)) ?>"><?= h($deptKey) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Course</label>
+        <select id="fCourse" class="control" disabled>
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Status</label>
+        <select id="fStatus" class="control">
+          <option value="">All</option>
+          <option value="verified">Verified</option>
+          <option value="unverified">Unverified</option>
+        </select>
+      </div>
+      <div class="inline-reset">
+        <button id="reset" class="btn"><i class="fa-solid fa-rotate"></i> Reset</button>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="search">
+        <label class="label sr-only">Search</label>
+        <i class="fa-solid fa-magnifying-glass icon"></i>
+        <input id="q" class="control" placeholder="Search first/last name, username, student ID…" />
+      </div>
+    </div>
   </div>
 
-  <nav>
-    <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
+  <!-- TABLE -->
+  <div class="table-card">
+    <div class="table-wrap">
+      <table id="votersTable">
+        <thead>
+          <tr>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Middle Name</th>
+            <th>Username</th>
+            <th>Student ID</th>
+            <th>Course</th>       <!-- acronym shown -->
+            <th>Status</th>       <!-- swapped before Department -->
+            <th>Department</th>   <!-- after Status -->
+            <th style="width:220px">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+<?php
+$count = 0;
+while ($row = mysqli_fetch_assoc($res)):
+  $count++;
+  $id   = $row['VoterID'] ?? '';
+  $fn   = $row['FirstName'] ?? '';
+  $ln   = $row['LastName'] ?? '';
+  $mn   = $row['MiddleName'] ?? '';
+  $un   = $row['Username'] ?? '';
+  $sid  = $row['SchoolID'] ?? '';
+  // Read raw course/department (rename here if your column names differ)
+  $courseRaw = $row['Course'] ?? ($row['Program'] ?? '');
+  $deptCode  = $row['Department'] ?? ($row['Dept'] ?? '');
+  // Compute acronym for display, and full (best effort) for filtering
+  $courseAcr = course_to_acro($courseRaw, $COURSE_ACRO);
+  $courseFull = array_search($courseAcr, $COURSE_ACRO, true);
+  if ($courseFull === false) $courseFull = $courseRaw;
 
-    <div class="nav-item">
-      <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-      <div class="dropdown">
-        <a href="voter_list.php">Voters</a>
-        <div class="divider"></div>
-        <div class="has-submenu">
-          <a href="#"><span>Admin Actions</span> <i class="fa fa-chevron-right chev"></i></a>
-          <div class="submenu">
-            <a href="result.php"><i class="fa fa-table"></i> Election Result</a>
-            <a href="dashboard.php"><i class="fa fa-chart-bar"></i> Analytics</a>
-            <a href="canvassing_report.php"><i class="fa fa-table"></i> Vote Count Report</a>
-            <a href="voter_verification.php"><i class="fa fa-id-badge"></i> Voter Verification</a>
-          </div>
-        </div>
-      </div>
+  $isV  = strcasecmp(trim($row['Verified'] ?? ''), 'Verified') === 0;
+  $statusKey = $isV ? 'verified' : 'unverified';
+  $badge = $isV ? "<span class='badge badge-voted'>Verified</span>" : "<span class='badge badge-unvoted'>Unverified</span>";
+?>
+          <tr class="del<?= (int)$id ?>"
+              data-status="<?= h($statusKey) ?>"
+              data-course="<?= h(strtolower($courseFull)) ?>"
+              data-department="<?= h(strtolower($deptCode)) ?>">
+            <td><?= h($fn) ?></td>
+            <td><?= h($ln) ?></td>
+            <td><?= h($mn) ?></td>
+            <td><?= h($un) ?></td>
+            <td><?= h($sid) ?></td>
+            <td><?= h($courseAcr) ?></td>   <!-- acronym -->
+            <td><?= $badge ?></td>          <!-- Status -->
+            <td><?= h($deptCode) ?></td>    <!-- Department -->
+            <td>
+              <?php if(!$isV): ?>
+                <button class="btn verify-btn" data-id="<?= (int)$id ?>"><i class="fa fa-check"></i> Verify</button>
+              <?php endif; ?>
+              <a class="btn" style="border-color:#ffd1d6;background:#ffe9ec;color:#b61e1e" data-id="<?= (int)$id ?>" href="#" id="del-<?= (int)$id ?>"><i class="fa fa-trash"></i> Delete</a>
+              <input type="hidden" name="data_name" class="data_name<?= (int)$id ?>" value="<?= h($fn.' '.$ln) ?>"/>
+              <input type="hidden" name="user_name" class="user_name" value="<?= h($_SESSION['User_Type'] ?? '') ?>"/>
+            </td>
+          </tr>
+<?php endwhile; ?>
+        </tbody>
+      </table>
     </div>
-
-    <div class="nav-item">
-      <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-      <div class="dropdown"><a href="profile.php">View Profile</a></div>
+    <div class="footer">
+      <div><span class="pill" id="countLabel"><?= (int)$count ?></span> total rows</div>
+      <div>Tip: use search + filters to narrow results.</div>
     </div>
-
-    <div class="nav-item"><a href="about.php"><i class="fas fa-circle-info"></i> About</a></div>
-    <div class="nav-item logout"><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></div>
-  </nav>
-</header>
-
-<main>
-  <div class="container">
-    <div class="card">
-      <!-- ===== Toolbar ===== -->
-      <div class="toolbar">
-        <div class="left-actions">
-          <div class="filter-wrap">
-            <button class="btn" id="filterBtn" type="button">
-              <i class="fa fa-filter"></i> Filter By Position <i class="fa fa-caret-down" aria-hidden="true"></i>
-            </button>
-            <div class="filter-menu" id="filterMenu">
-              <a href="voter_verification.php"><i class="fa fa-table"></i> All</a>
-              <a href="verified_voters.php"><i class="fa fa-circle-check"></i> Verified Voters</a>
-              <a href="unverified_voters.php"><i class="fa fa-circle"></i> Unverified Voters</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="right-actions">
-          <div class="control">
-            <label for="pageSize">Items per page:</label>
-            <select id="pageSize">
-              <option>5</option><option>10</option><option selected>15</option><option>25</option><option>50</option>
-            </select>
-          </div>
-          <input type="search" id="tableSearch" placeholder="Search..." />
-        </div>
-      </div>
-
-      <!-- ===== Table ===== -->
-      <div class="demo_jui">
-        <table id="votersTable">
-          <thead>
-            <tr>
-              <th>FirstName</th>
-              <th>LastName</th>
-              <th>MiddleName</th>
-              <th>UserName</th>
-              <th>Student ID</th>
-              <th>Year</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            <?php 
-              $voter_query = mysqli_query($conn, "SELECT * FROM voters");
-              while ($voter_rows = mysqli_fetch_array($voter_query)):
-                $id = $voter_rows['VoterID'];
-                $isVerified = strcasecmp(trim($voter_rows['Verified']), 'Verified') === 0;
-            ?>
-            <tr class="del<?php echo $id; ?>">
-              <td><?php echo htmlspecialchars($voter_rows['FirstName']); ?></td>
-              <td><?php echo htmlspecialchars($voter_rows['LastName']); ?></td>
-              <td><?php echo htmlspecialchars($voter_rows['MiddleName']); ?></td>
-              <td><?php echo htmlspecialchars($voter_rows['Username']); ?></td>
-              <td><?php echo htmlspecialchars($voter_rows['SchoolID']); ?></td>
-              <td align="center"><?php echo htmlspecialchars($voter_rows['Year']); ?></td>
-              <td align="center">
-                <?php if($isVerified): ?>
-                  <span class="badge badge-success">Verified</span>
-                <?php else: ?>
-                  <span class="badge">Not Verified</span>
-                <?php endif; ?>
-              </td>
-              <td align="center">
-                <?php if(!$isVerified): ?>
-                  <button class="btn-primary verify-btn" data-id="<?php echo $id; ?>"><i class="fa fa-check"></i> Verify</button>
-                <?php endif; ?>
-                <a class="btn-danger btn-delete" data-id="<?php echo $id; ?>"><i class="fa fa-trash"></i> Delete</a>
-                <input type="hidden" name="data_name" class="data_name<?php echo $id; ?>" value="<?php echo htmlspecialchars($voter_rows['FirstName'].' '.$voter_rows['LastName']); ?>"/>
-                <input type="hidden" name="user_name" class="user_name" value="<?php echo htmlspecialchars($_SESSION['User_Type']); ?>"/>
-              </td>
-            </tr>
-            <?php endwhile; ?>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ===== Footer / Pagination ===== -->
-      <div class="table-footer">
-        <div id="showingText">Showing 0–0 of 0</div>
-        <div class="pager">
-          <button id="prevBtn" aria-label="Previous"><i class="fa fa-chevron-left"></i></button>
-          <button id="nextBtn" aria-label="Next"><i class="fa fa-chevron-right"></i></button>
-        </div>
-      </div>
-    </div>
-
-    <footer>© 2025 Online Election Voting System</footer>
   </div>
-</main>
+</div>
 
 <input type="hidden" class="pc_date" name="pc_date"/>
 <input type="hidden" class="pc_time" name="pc_time"/>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script>
-  // Smart header: hide on scroll down, show on scroll up
-  (function(){
-    const header = document.querySelector('header.smart-header');
-    let lastY = window.pageYOffset || 0;
-    window.addEventListener('scroll', () => {
-      const y = window.pageYOffset || document.documentElement.scrollTop;
-      if (y > 80 && y > lastY) { header.classList.add('header-hide'); }
-      else { header.classList.remove('header-hide'); }
-      lastY = y <= 0 ? 0 : y;
-    }, { passive:true });
-  })();
+(function(){
+  const $ = (s, r=document) => r.querySelector(s);
+  const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 
-  // Filter dropdown toggle
-  (function(){
-    const btn = document.getElementById('filterBtn');
-    const menu = document.getElementById('filterMenu');
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.style.display = menu.style.display==='block'?'none':'block'; });
-    document.addEventListener('click', (e)=>{ if(!e.target.closest('.filter-wrap')) menu.style.display='none'; });
-  })();
+  const q = $('#q'),
+        fDepartment = $('#fDepartment'),
+        fCourse = $('#fCourse'),
+        fStatus = $('#fStatus'),
+        reset = $('#reset'),
+        rows = $$('#votersTable tbody tr'),
+        countLabel = $('#countLabel');
 
-  // Client-side search + pagination (same behavior as voter_list.php)
-  (function(){
-    const tbody = document.getElementById('tableBody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    const search = document.getElementById('tableSearch');
-    const pageSizeSel = document.getElementById('pageSize');
-    const showingText = document.getElementById('showingText');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-
-    let page = 1;
-    const getSize = () => parseInt(pageSizeSel.value,10);
-    const filtered = () => {
-      const q = search.value.trim().toLowerCase();
-      if(!q) return rows;
-      return rows.filter(tr => tr.textContent.toLowerCase().includes(q));
-    };
-    function render(){
-      const list = filtered();
-      const size = getSize();
-      const total = list.length;
-      const pages = Math.max(1, Math.ceil(total/size));
-      if(page>pages) page = pages;
-
-      rows.forEach(tr => tr.style.display='none');
-      const start = (page-1)*size;
-      const end = Math.min(total, start+size);
-      for(let i=start;i<end;i++) list[i].style.display='table-row';
-
-      showingText.textContent = total ? `Showing ${start+1}–${end} of ${total}` : 'Showing 0–0 of 0';
-      prevBtn.disabled = page<=1;
-      nextBtn.disabled = page>=pages;
+  // PHP -> JS: dept courses (exclude __COLLEGE__)
+  const DEPT_COURSES = <?php
+    $dcOut = [];
+    foreach ($deptCourses as $dk => $list) {
+      $dcOut[$dk] = array_values(array_filter($list, fn($v,$k)=>$k!=='__COLLEGE__', ARRAY_FILTER_USE_BOTH));
     }
-    search.addEventListener('input', ()=>{ page=1; render(); });
-    pageSizeSel.addEventListener('change', ()=>{ page=1; render(); });
-    prevBtn.addEventListener('click', ()=>{ if(page>1){ page--; render(); }});
-    nextBtn.addEventListener('click', ()=>{ page++; render(); });
-    render();
+    echo json_encode($dcOut, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  ?>;
+  const ALL_COURSES = Array.from(new Set(Object.values(DEPT_COURSES).flat())).sort();
+
+  // Department->Course binding (course uses FULL names)
+  function populateCourse(){
+    const dept = (fDepartment.value||'').toUpperCase();
+    const prev = fCourse.value;
+    fCourse.innerHTML = '<option value="">All</option>';
+    if (!dept) { fCourse.disabled = true; return; }
+    fCourse.disabled = false;
+    const list = (dept === 'CAS') ? ALL_COURSES : (DEPT_COURSES[dept] || []);
+    list.forEach(full=>{
+      const o = document.createElement('option');
+      o.value = full.toLowerCase();
+      o.textContent = full;
+      fCourse.appendChild(o);
+    });
+    if (prev && Array.from(fCourse.options).some(o=>o.value===prev)) fCourse.value = prev;
+  }
+  populateCourse();
+  fDepartment.addEventListener('change', populateCourse);
+
+  // Respect ?view=
+  (function initStatusFromView(){
+    const params = new URLSearchParams(location.search);
+    const view = (params.get('view')||'').toLowerCase();
+    if (view === 'verified' || view === 'unverified') fStatus.value = view;
   })();
 
-  // Timestamps for audit
-  $(function(){
-    const d = new Date();
-    $(".pc_date").val(`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`);
-    $(".pc_time").val(`${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`);
+  const norm = s => (s||'').toLowerCase().trim();
+
+  function applyFilters(){
+    const term = norm(q.value);
+    const dep  = norm(fDepartment.value);
+    const crs  = norm(fCourse.value);
+    const st   = norm(fStatus.value);
+    let shown = 0;
+    rows.forEach(tr=>{
+      const txt = tr.textContent.toLowerCase();
+      const okTerm = !term || txt.includes(term);
+      const okDep  = !dep || tr.dataset.department === dep;
+      const okCrs  = !crs || tr.dataset.course === crs;    // compares to FULL name stored in data-course
+      const okSt   = !st  || tr.dataset.status === st;
+      const show = okTerm && okDep && okCrs && okSt;
+      tr.style.display = show ? '' : 'none';
+      if (show) shown++;
+    });
+    if (countLabel) countLabel.textContent = shown;
+  }
+
+  [q, fDepartment, fCourse, fStatus].forEach(el=>{
+    el.addEventListener('input', applyFilters);
+    el.addEventListener('change', applyFilters);
   });
 
-  // Verify action
-  $('.demo_jui').on('click', '.verify-btn', function(e){
+  reset.addEventListener('click', ()=>{
+    q.value=''; fDepartment.value=''; fCourse.innerHTML='<option value="">All</option>'; fCourse.disabled=true; fStatus.value='';
+    applyFilters();
+  });
+
+  applyFilters();
+
+  // Verify action (AJAX)
+  $('.table-card').on('click', '.verify-btn', function(e){
     e.preventDefault();
     const id = $(this).data('id');
-    if(!confirm("Are you sure you want to verify this voter?")) return;
-
+    if(!confirm("Verify this voter?")) return;
     $.post('verify_voter.php', { id }, (res)=>{
       if(String(res).trim()==='success'){
-        const cell = $(this).closest('td').prev(); // status cell
-        cell.html('<span class="badge badge-success">Verified</span>');
-        $(this).remove(); // remove verify button
+        const $row = $(this).closest('tr');
+        // Status is column 7 now (after Course)
+        $row.find('td:nth-child(7)').html('<span class="badge badge-voted">Verified</span>');
+        $row.attr('data-status','verified');
+        $(this).remove();
+        applyFilters();
       }else{
         alert('Verification failed. Try again.');
       }
     });
   });
 
-  // Delete action
-  $('.demo_jui').on('click', '.btn-delete', function(e){
+  // Delete action (AJAX)
+  $('.table-card').on('click', 'a[id^="del-"]', function(e){
     e.preventDefault();
     const id = $(this).data('id');
-    if(!confirm("Are you sure you want to delete this Voter?")) return;
-
+    if(!confirm("Delete this voter?")) return;
     $.post('delete_voter.php', {
       id,
       pc_time: $('.pc_time').val(),
@@ -348,9 +410,15 @@ include('dbcon.php');
       data_name: $('.data_name'+id).val(),
       user_name: $('.user_name').val()
     }, function(){
-      $(".del"+id).fadeOut('slow');
+      $('.del'+id).fadeOut('fast', function(){ $(this).remove(); applyFilters(); });
     });
   });
+
+  // Timestamp helpers
+  const d = new Date();
+  document.querySelector('.pc_date').value = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+  document.querySelector('.pc_time').value = `${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
+})();
 </script>
 </body>
 </html>

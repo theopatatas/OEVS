@@ -44,7 +44,7 @@ $deptCourses = [
     'Bachelor of Science in Midwifery',
   ],
   'CIT'  => [
-    '__COLLEGE__' => 'College of Information Technology', 
+    '__COLLEGE__' => 'College of Information Technology',
     'Bachelor of Science in Information Technology',
   ],
   'CAS'  => [
@@ -58,11 +58,10 @@ function all_courses(array $map): array {
   $all = [];
   foreach ($map as $dept => $list) {
     foreach ($list as $k => $v) {
-      if ($k === '__COLLEGE__') continue; // skip marker KEY
-      $all[] = $v; // course name
+      if ($k === '__COLLEGE__') continue;
+      $all[] = $v;
     }
   }
-  // De-duplicate while preserving order
   $seen = [];
   $uniq = [];
   foreach ($all as $c) {
@@ -72,8 +71,8 @@ function all_courses(array $map): array {
 }
 $ALL_COURSES = all_courses($deptCourses);
 
-$errors  = [];
-$success = false;
+/* campuses (REQUIRED) */
+$campusOptions = ['Au Main', 'Au South', 'Au San Jose'];
 
 /* ------------ HELPERS ------------ */
 function slugify($s){ return strtolower(trim(preg_replace('/[^a-z0-9]+/i','-',$s),'-')); }
@@ -86,8 +85,11 @@ function param_type_for($t){
   return 's';
 }
 
-/* Upload dir (same as your current code) */
-$uploadDir = __DIR__ . '/images/candidates';
+/* ✅ Save OUTSIDE admin so voters can load it:
+   filesystem: /oevs/images/candidates
+   web path saved to DB: images/candidates/<file> */
+$errors = [];
+$uploadDir = dirname(__DIR__) . '/images/candidates';
 if (!is_dir($uploadDir)) { @mkdir($uploadDir, 0775, true); }
 if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
   $errors[] = 'Upload folder not writable: ' . htmlspecialchars($uploadDir);
@@ -106,25 +108,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $department   = trim($_POST['department']  ?? '');
   $course       = trim($_POST['course']      ?? '');
   $qualif       = trim($_POST['qualification'] ?? '');
+  $campusRaw    = trim($_POST['campus'] ?? '');
 
   /* ---------- validate ---------- */
-  if ($position === '' || !in_array($position, $allowedPositions, true))
-    $errors[] = 'Please choose a valid Position.';
-
+  $allowedPositionsMap = array_flip($allowedPositions);
+  if ($position === '' || !isset($allowedPositionsMap[$position])) $errors[] = 'Please choose a valid Position.';
   if ($firstName === '') $errors[] = 'First Name is required.';
   if ($lastName  === '') $errors[] = 'Last Name is required.';
-  if ($gender === '' || !in_array($gender, ['Male','Female','Other'], true))
-    $errors[] = 'Please select a valid Gender.';
+  if ($gender === '' || !in_array($gender, ['Male','Female','Other'], true)) $errors[] = 'Please select a valid Gender.';
+  if ($yearText === '' || !in_array($yearText, $allowedYears, true)) $errors[] = 'Please select a valid Year level.';
 
-  if ($yearText === '' || !in_array($yearText, $allowedYears, true))
-    $errors[] = 'Please select a valid Year level.';
-
-  // Department must be one of the keys
   $deptKeys = array_keys($deptCourses);
-  if ($department === '' || !in_array($department, $deptKeys, true))
-    $errors[] = 'Please choose a valid Department.';
+  if ($department === '' || !in_array($department, $deptKeys, true)) $errors[] = 'Please choose a valid Department.';
 
-  // Build valid courses for chosen department (CAS => all courses)
   $validCourses = [];
   if ($department) {
     if ($department === 'CAS') {
@@ -132,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
       foreach ($deptCourses[$department] as $k => $v) {
         if ($k === '__COLLEGE__') continue;
-        $validCourses[] = $v; // course name
+        $validCourses[] = $v;
       }
     }
     if ($course === '' || !in_array($course, $validCourses, true)) {
@@ -140,9 +136,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  if ($campusRaw === '' || !in_array($campusRaw, $campusOptions, true)) $errors[] = 'Please choose a valid Campus.';
+  $campus = $campusRaw;
+
   /* ---------- file upload ---------- */
   $photoPathRel = '';
   $destAbs = '';
+  $tmpPath = '';
+
   if (!isset($_FILES['photo']) || (int)$_FILES['photo']['error'] === UPLOAD_ERR_NO_FILE) {
     $errors[] = 'Candidate photo is required.';
   } else {
@@ -170,15 +171,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $unique = date('YmdHis') . '-' . bin2hex(random_bytes(4));
         $safe   = slugify($firstName).'-'.slugify($lastName).'-'.$unique.'.'.$ext;
 
-        $destAbs = rtrim($uploadDir, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$safe;
-        $photoPathRel = 'images/candidates/'.$safe;
+        $destAbs = rtrim($uploadDir, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.$safe;  // /oevs/images/candidates/<file>
+        $photoPathRel = 'images/candidates/'.$safe;                                   // saved to DB
       }
     }
   }
 
   if (empty($errors)) {
-    if (!@move_uploaded_file($_FILES['photo']['tmp_name'], $destAbs)) {
+    if (!@move_uploaded_file($tmpPath, $destAbs)) {
       $errors[] = 'Failed to save uploaded image.';
+    } else {
+      @chmod($destAbs, 0644);
     }
   }
 
@@ -212,8 +215,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'Year'          => $yearText,
         'Department'    => $department,   // acronym (e.g., CMA, CAS, CIT)
         'Course'        => $course,       // course full text
-        'Photo'         => $photoPathRel,
+        'Photo'         => $photoPathRel, // web path (visible to voters)
         'Qualification' => $qualif,
+        'Campus'        => $campus
       ];
 
       $insertData = [];
@@ -236,31 +240,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         else                           $insertData[$col] = '';
       }
 
-      if (!$insertData) {
+      if (empty($insertData)) {
         $errors[] = 'No insertable columns resolved from table metadata.';
       } else {
         $columns = array_keys($insertData);
-        $types = '';
-        foreach ($columns as $c) $types .= isset($colInfo[$c]) ? param_type_for($colInfo[$c]['DATA_TYPE']) : 's';
-        $placeholders = implode(',', array_fill(0, count($columns), '?'));
+        $placeholders = [];
+        $bindValues = [];
+        $bindTypes = '';
+
+        foreach ($columns as $c) {
+          $v = $insertData[$c];
+          if (is_null($v)) {
+            $placeholders[] = 'NULL';
+          } else {
+            $placeholders[] = '?';
+            $bindValues[] = $v;
+            $dt = isset($colInfo[$c]) ? $colInfo[$c]['DATA_TYPE'] : 'varchar';
+            $bindTypes .= param_type_for($dt);
+          }
+        }
+
         $quotedCols = implode('`,`', $columns);
-        $sql = "INSERT INTO `candidate` (`$quotedCols`) VALUES ($placeholders)";
+        $sql = "INSERT INTO `candidate` (`$quotedCols`) VALUES (" . implode(',', $placeholders) . ")";
 
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
           $errors[] = 'Database error preparing statement.';
           if ($photoPathRel && $destAbs && file_exists($destAbs)) { @unlink($destAbs); }
         } else {
-          $values = array_values($insertData);
-          $bind = [$types];
-          for ($i=0; $i<count($values); $i++) { $bind[] = &$values[$i]; }
-          call_user_func_array([$stmt, 'bind_param'], $bind);
+          if (!empty($bindValues)) {
+            $bindParams = [];
+            $bindParams[] = $bindTypes;
+            for ($i=0;$i<count($bindValues);$i++) $bindParams[] = &$bindValues[$i];
+            call_user_func_array([$stmt, 'bind_param'], $bindParams);
+          }
 
           try {
             $stmt->execute();
             $stmt->close();
-            // UPDATED REDIRECT → candidates.php
-            header("Location: candidates.php?added=1&name=".urlencode($firstName.' '.$lastName));
+            header("Location: candidates.php?added=1&name=" . urlencode($firstName . ' ' . $lastName));
             exit;
           } catch (Throwable $e) {
             $errors[] = 'Database error: '.htmlspecialchars($e->getMessage());
@@ -302,7 +320,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .card-bd{padding:18px}
     .alert{padding:12px 14px;border-radius:12px;border:1px solid #fecaca;background:#fff1f2;color:#7f1d1d;margin-bottom:14px}
     .alert strong{display:block;margin-bottom:6px}
-    form{display:block}
     .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
     @media (max-width:820px){.grid{grid-template-columns:1fr}}
     .field{display:flex;flex-direction:column;gap:8px}
@@ -372,17 +389,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
           <div class="field">
             <label for="firstname">First Name</label>
-            <input type="text" id="firstname" name="firstname" value="<?php echo htmlspecialchars($_POST['firstname'] ?? ''); ?>" required>
+            <input type="text" id="firstname" name="firstname" value="<?php echo htmlspecialchars($_POST['firstname'] ?? ''); ?>" placeholder="e.g., Juan" required>
           </div>
 
           <div class="field">
             <label for="lastname">Last Name</label>
-            <input type="text" id="lastname" name="lastname" value="<?php echo htmlspecialchars($_POST['lastname'] ?? ''); ?>" required>
+            <input type="text" id="lastname" name="lastname" value="<?php echo htmlspecialchars($_POST['lastname'] ?? ''); ?>" placeholder="e.g., Dela Cruz" required>
           </div>
 
           <div class="field">
-            <label for="middlename">Middle Name</label>
-            <input type="text" id="middlename" name="middlename" value="<?php echo htmlspecialchars($_POST['middlename'] ?? ''); ?>">
+            <label for="middlename">Middle Name (optional)</label>
+            <input type="text" id="middlename" name="middlename" value="<?php echo htmlspecialchars($_POST['middlename'] ?? ''); ?>" placeholder="Optional">
           </div>
 
           <div class="field">
@@ -445,6 +462,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               ?>
             </select>
             <span class="help">CAS lists every course across colleges. CIT has BSIT only.</span>
+          </div>
+
+          <div class="field">
+            <label for="campus">Campus</label>
+            <select id="campus" name="campus" required>
+              <option value="" disabled <?php echo (($_POST['campus'] ?? '') === '') ? 'selected' : ''; ?>>Select campus</option>
+              <?php foreach ($campusOptions as $opt): ?>
+                <option value="<?php echo htmlspecialchars($opt); ?>" <?php echo (($_POST['campus'] ?? '') === $opt) ? 'selected' : ''; ?>><?php echo htmlspecialchars($opt); ?></option>
+              <?php endforeach; ?>
+            </select>
+            <span class="help">Choose the candidate's campus (required).</span>
           </div>
 
           <div class="section-title">About the Candidate</div>

@@ -2,375 +2,353 @@
 include('session.php');
 include('dbcon.php');
 
-// collect distinct positions for the filter
-$pos_res = mysqli_query($conn, "SELECT DISTINCT Position FROM candidate ORDER BY Position ASC");
-$positions = [];
-while ($r = mysqli_fetch_assoc($pos_res)) { $positions[] = $r['Position']; }
+if (!function_exists('h')) { function h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); } }
+function int0($v){ return is_numeric($v)?(int)$v:0; }
 
-// pull candidates grouped by position
-function fetchCandidatesByPosition($conn, $position){
-  $safe = mysqli_real_escape_string($conn, $position);
-  $q = mysqli_query($conn, "
-    SELECT c.CandidateID, c.FirstName, c.LastName, c.Year, c.Position, c.Photo, c.Qualification, c.Party,
-           (SELECT COUNT(*) FROM votes v WHERE v.CandidateID = c.CandidateID) AS vote_count
-    FROM candidate c
-    WHERE c.Position = '$safe'
-    ORDER BY vote_count DESC, c.LastName ASC
-  ");
-  $rows = [];
-  while($row = mysqli_fetch_assoc($q)){ $rows[] = $row; }
-  return $rows;
+/* ---------- Inputs ---------- */
+$department = isset($_GET['department']) ? trim($_GET['department']) : 'All';
+$course     = isset($_GET['course'])     ? trim($_GET['course'])     : 'All';
+$position   = isset($_GET['position'])   ? trim($_GET['position'])   : 'All';
+$campus     = isset($_GET['campus'])     ? trim($_GET['campus'])     : 'All';
+$q          = isset($_GET['q'])          ? trim($_GET['q'])          : '';
+
+/* ---------- Canonical position order ---------- */
+$POS_ORDER = [
+  'President','Vice-President','Governor','Vice-Governor',
+  'Secretary','Treasurer','Representative','Social-Media Officer'
+];
+
+/* ---------- Lists + Dept->Course map ---------- */
+$depts   = ['All'];
+$courses = ['All'];
+$campuses = ['All','Au Main','Au South','Au San Jose'];
+$deptCourseMap = [];
+
+/* Distinct Departments */
+$qd = mysqli_query($conn, "SELECT DISTINCT Department d
+                           FROM candidate
+                           WHERE Department IS NOT NULL AND TRIM(Department)<>'' 
+                           ORDER BY Department");
+while ($qd && ($r=mysqli_fetch_assoc($qd))) $depts[] = $r['d'];
+
+/* Courses overall + per dept */
+$dc = mysqli_query($conn, "SELECT DISTINCT Department d, Course c
+                           FROM candidate
+                           WHERE Department IS NOT NULL AND TRIM(Department)<>''
+                             AND Course IS NOT NULL AND TRIM(Course)<>''
+                           ORDER BY Department, Course");
+while ($dc && ($r=mysqli_fetch_assoc($dc))) {
+  $deptCourseMap[$r['d']][$r['c']] = true;
 }
+if ($department === 'All') {
+  $qc = mysqli_query($conn, "SELECT DISTINCT Course c FROM candidate WHERE Course IS NOT NULL AND TRIM(Course)<>'' ORDER BY Course");
+  while ($qc && ($r=mysqli_fetch_assoc($qc))) $courses[] = $r['c'];
+} elseif (!empty($deptCourseMap[$department])) {
+  $courses = array_merge(['All'], array_keys($deptCourseMap[$department]));
+}
+
+/* ---------- Base WHERE for global filters (NOT including Position here) ---------- */
+$where=[]; $params=[]; $types='';
+if ($department!=='All'){ $where[]="c.Department=?"; $params[]=$department; $types.='s'; }
+if ($course!=='All'){     $where[]="c.Course=?";     $params[]=$course;     $types.='s'; }
+if ($campus!=='All'){     $where[]="COALESCE(c.Campus,'')=?"; $params[]=$campus; $types.='s'; }
+
+$baseSql = "FROM candidate c";
+if ($where) $baseSql .= " WHERE ".implode(' AND ',$where);
+
+/* ---------- Department list to render ---------- */
+$deptRender = [];
+if ($department==='All') {
+  $sqlD = "SELECT DISTINCT c.Department d $baseSql";
+  $std = mysqli_prepare($conn,$sqlD);
+  if ($std){ if ($types!=='') mysqli_stmt_bind_param($std,$types,...$params);
+    mysqli_stmt_execute($std); $rs = mysqli_stmt_get_result($std);
+    while ($rs && ($r=mysqli_fetch_assoc($rs))) if ($r['d']!=='') $deptRender[]=$r['d'];
+    mysqli_stmt_close($std);
+  }
+} else {
+  $deptRender = [$department];
+}
+
+/* ---------- Titles ---------- */
+$deptTitle = ($department==='All') ? 'All Departments' : $department;
+$campTitle = ($campus==='All') ? 'All Campuses' : $campus;
+
+/* ---------- Position sections to show (THIS is the change) ---------- */
+$posSectionList = ($position==='All') ? $POS_ORDER : [$position];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Election Result - Online Voting System</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <meta charset="UTF-8">
+  <title>Election Results</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    :root{
-      --primary:#002f6c; --accent:#0056b3; --bg:#f4f6f8; --white:#fff; --ink:#0d2343;
-      --muted:#6c7b90; --border:#e6ebf4; --shadow:0 8px 24px rgba(0,0,0,.08); --ring:#9ec5ff;
-      --table-head:#0a2e5c;
-    }
+    :root{ --primary:#002f6c; --accent:#0056b3; --bg:#f4f6f8; --white:#fff; --shadow:0 4px 12px rgba(0,0,0,.08);
+           --font:'Inter',sans-serif; --muted:#39557a; --radius:14px; }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);margin:0;color:var(--ink)}
-    a{text-decoration:none;color:inherit}
+    body{font-family:var(--font); background:var(--bg); margin:0; color:#23374d}
+    .container{max-width:1400px; margin:16px auto; padding:0 20px}
 
-    /* ===== Header (same pattern as other pages) ===== */
-    header{
-      background:var(--white); box-shadow:var(--shadow); border-bottom:1px solid var(--border);
-      padding:10px 22px; display:flex; justify-content:space-between; align-items:center; gap:16px; position:sticky; top:0; z-index:10;
-    }
-    .logo-section{display:flex; align-items:center; gap:10px}
-    .logo-section img{height:40px}
-    .logo-section .title{font-weight:700; font-size:16px; color:var(--primary); line-height:1.1}
-    .logo-section .title small{font-weight:600; font-size:12px; color:var(--accent)}
-    nav{display:flex; align-items:center; gap:12px}
-    .nav-item{position:relative}
-    .nav-item > a{display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px; font-weight:700; color:var(--primary); transition:.2s}
-    .nav-item > a i{width:18px; text-align:center}
-    .nav-item > a:hover,.nav-item > a:focus-visible{background:var(--primary); color:#fff; outline:none}
-    .nav-item.logout > a{color:#d92d2d; font-weight:800}
-    .nav-item.logout > a:hover,.nav-item.logout > a:focus-visible{background:#ffe9e9; color:#b61e1e}
+    .card{background:#fff; border:1px solid #e8eef7; box-shadow:var(--shadow); border-radius:var(--radius); padding:12px}
 
-    /* header dropdowns */
-    .dropdown,.submenu{
-      display:none; position:absolute; top:calc(100% - 2px); left:0; min-width:240px; background:#fff; border:1px solid #e7eef7;
-      border-radius:14px; box-shadow:0 10px 30px rgba(13,35,67,.12), 0 2px 6px rgba(13,35,67,.06); padding:6px; z-index:999;
-    }
-    .nav-item:hover > .dropdown,.nav-item:focus-within > .dropdown{display:block}
-    .dropdown a,.submenu a{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; color:var(--primary); font-weight:600}
-    .dropdown a:hover,.submenu a:hover,.dropdown a:focus-visible,.submenu a:focus-visible{background:var(--accent); color:#fff}
-    .dropdown .divider{height:1px; background:#e9eff7; margin:6px 4px}
-    .has-submenu{position:relative}
-    .submenu{position:static; border:none; box-shadow:none; padding:4px 0 0 0}
-    .submenu a{padding-left:36px}
-    .has-submenu > a .chev{margin-left:auto; transition:transform .2s}
-    .has-submenu:hover > .submenu,.has-submenu:focus-within > .submenu{display:block}
-    .has-submenu:hover > a .chev,.has-submenu:focus-within > a .chev{transform:rotate(90deg)}
+    /* Filter bar */
+    .filters .row{display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)) auto; gap:10px; align-items:end}
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field label{font-size:12px; color:var(--muted); font-weight:600}
+    select{appearance:none; padding:12px 14px; border-radius:12px; border:1px solid #d8e2f0; background:#fff; color:#0d2f66; outline:none}
+    .filters .right{display:flex; gap:8px}
+    .btn{display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:12px; border:1px solid #d8e2f0; background:#fff; color:#0d2f66; text-decoration:none; cursor:pointer}
+    .btn:hover{background:#f6f9ff}
 
-    /* ===== Page ===== */
-    main{padding:22px 16px}
-    .container{max-width:1100px; margin:0 auto}
+    /* Controls */
+    .controls{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px}
+    .controls .search{position:relative; flex:1 1 520px; min-width:260px}
+    .controls .search input{width:100%; padding:12px 40px; border-radius:12px; border:1px solid #d8e2f0; background:#fff; color:#0d2f66}
+    .controls .search .icon-left{position:absolute; left:12px; top:50%; transform:translateY(-50%); opacity:.7}
+    .controls .search .clear{position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; opacity:.55; display:none}
 
-    /* top tools row (filter + search) */
-    .tools{
-      display:flex; align-items:center; justify-content:space-between; gap:12px; background:#fff; border:1px solid var(--border);
-      border-radius:12px; box-shadow:var(--shadow); padding:12px; margin-bottom:14px;
-    }
-    .btn{
-      display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); background:#f7f9fc; color:#0b1b36;
-      font-weight:700; border-radius:10px; padding:9px 12px; cursor:pointer;
-    }
-    .btn:hover{background:#eef4ff}
-    .search-wrap{flex:1; display:flex; justify-content:flex-end}
-    .search-wrap input{
-      width:min(420px, 100%); height:38px; border:1px solid var(--border); border-radius:10px; padding:0 12px; font:inherit; outline:none;
-    }
-    .search-wrap input:focus{box-shadow:0 0 0 3px var(--ring); border-color:#b6d6ff}
+    /* Title band */
+    .titleband{margin-top:14px; padding:14px 16px; background:#fff; border:1px solid #e8eef7; border-radius:12px; box-shadow:var(--shadow)}
+    .titleband h1{margin:0; font-size:18px; color:#0b2b6a; font-weight:800}
+    .titleband .sub{margin-top:4px; color:#4b5b70; font-size:13px}
 
-    /* Filter dropdown (like screenshot) */
-    .filter-wrap{position:relative}
-    .filter-menu{
-      display:none; position:absolute; top:calc(100% + 8px); left:0; background:#fff; border:1px solid var(--border);
-      border-radius:12px; box-shadow:var(--shadow); min-width:260px; padding:8px; z-index:5;
-    }
-    .filter-option{
-      display:flex; gap:10px; align-items:flex-start; padding:10px; border-radius:10px; cursor:pointer;
-    }
-    .filter-option:hover{background:#f3f6ff}
-    .filter-option input{margin-top:2px}
-    .fo-text{display:flex; flex-direction:column}
-    .fo-title{font-weight:700; color:#102b54}
-    .fo-sub{font-size:12px; color:#6c7b90}
+    /* Department block */
+    .dept-section{background:#fff; border:1px solid #e8eef7; box-shadow:var(--shadow); border-radius:var(--radius); padding:18px; margin-top:14px}
+    .dept-title{margin:0 0 6px; font-size:20px; color:#0b2b6a; text-align:left}
+    .dept-caption{margin:0 0 12px; color:#4b5b70; font-size:13px}
 
-    /* Section + grid */
-    .section{background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:18px; margin-bottom:18px}
-    .section h2{margin:0 0 14px; text-align:center; color:#102b54}
-    .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px}
-    .card{
-      border:1px solid var(--border); border-radius:12px; background:#fff; padding:14px; display:flex; flex-direction:column; align-items:center; gap:10px;
+    /* Position sub-section */
+    .pos-title{margin:8px 0 10px; font-size:16px; color:#0b2b6a; font-weight:800; border-left:4px solid #c7dbff; padding-left:8px}
+
+    /* Candidate cards */
+    .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px}
+    .card-cand{
+      border:1px solid #e5e7eb; border-radius:12px; padding:14px; background:#fff;
+      display:flex; flex-direction:column; align-items:center; gap:8px; min-height:220px
     }
-    .pos-label{font-size:12px; color:#6b7892; font-weight:700}
-    .bar-rail{position:relative; height:160px; width:30px; background:#edf2f7; border-radius:6px; overflow:hidden; display:flex; align-items:flex-end; justify-content:center}
-    .bar-fill{width:100%; background:#0a2e5c; border-radius:6px 6px 0 0}
-    .bar-tick{position:absolute; left:0; width:100%; height:1px; background:rgba(0,0,0,.12)}
-    .bar-tick.t1{bottom:25%} .bar-tick.t2{bottom:50%} .bar-tick.t3{bottom:75%} .bar-tick.t4{bottom:100%}
-    .votes{font-size:12px; font-weight:700}
-    .avatar{width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #0a2e5c}
-    .name{font-weight:700; text-align:center}
-    .pill{display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid #e7c8cc; background:#ffe8ea; color:#b61e1e; font-weight:700; cursor:pointer}
-    .pill i{width:14px; text-align:center}
-
-    /* Modal overlay (real overlay, not inline) */
-    .modal-overlay{position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,.35); z-index:1000}
-    .modal-overlay.show{display:flex}
-    .modal-box{background:#fff; width:min(860px, 96vw); max-height:90vh; overflow:auto; border-radius:16px; border:1px solid var(--border); box-shadow:var(--shadow)}
-    .modal-head{display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border)}
-    .modal-body{padding:16px}
-    .close-btn{border:1px solid var(--border); background:#f6f8fc; border-radius:8px; width:30px; height:30px; cursor:pointer}
-
-    footer{text-align:center; padding:18px 0; color:var(--muted); font-size:14px}
-
-    @media (max-width:768px){
-      header{flex-direction:column; align-items:stretch; gap:8px}
-      nav{flex-direction:column; gap:6px}
-      .nav-item{width:100%}
-      .nav-item > a{width:100%}
-      .dropdown{position:relative; top:0; left:0; margin:6px 0 0 0; box-shadow:none}
-      .submenu{position:relative}
+    .avatar{width:72px; height:72px; border-radius:50%; object-fit:cover; border:2px solid #000; background:#f3f4f6}
+    .name{font-size:15px; font-weight:800; text-align:center}
+    .meta{font-size:12px; color:#4b5b70; text-align:center}
+    .badge-votes{
+      margin-top:6px; font-weight:800; font-size:13px; color:#134e4a;
+      background:#ecfdf5; border:1px solid #a7f3d0; border-radius:999px; padding:6px 10px
     }
+
+    @media (max-width:1100px){ .filters .row{grid-template-columns:repeat(3,minmax(220px,1fr)) auto} }
+    @media (max-width:760px){ .filters .row{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
 
-<header>
-  <div class="logo-section">
-    <img src="images/au.png" alt="Logo" />
-    <div class="title">ONLINE ELECTION VOTING SYSTEM<br /><small>Phinma Araullo University</small></div>
-  </div>
+  <?php $activePage='results'; include 'header.php'; ?>
 
-  <nav>
-    <div class="nav-item"><a href="home.php"><i class="fas fa-home"></i> Home</a></div>
-
-    <div class="nav-item">
-      <a href="#"><i class="fas fa-list-ul"></i> Menu</a>
-      <div class="dropdown">
-        <a href="voter_list.php">Voters</a>
-        <div class="divider"></div>
-        <div class="has-submenu">
-          <a href="#" role="button" aria-expanded="false">
-            Admin Actions <i class="fa fa-chevron-right chev" aria-hidden="true"></i>
-          </a>
-          <div class="submenu">
-            <a href="result.php"><i class="fa fa-table"></i> Election Result</a>
-            <a href="dashboard.php"><i class="fa fa-chart-bar"></i> Analytics</a>
-            <a href="canvassing_report.php"><i class="fa fa-table"></i> Vote Count Report</a>
-            <a href="voter_verification.php"><i class="fa fa-id-badge"></i> Voter Verification</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="nav-item">
-      <a href="#"><i class="fas fa-user-circle"></i> Profile</a>
-      <div class="dropdown"><a href="profile.php">View Profile</a></div>
-    </div>
-    <div class="nav-item"><a href="about.php"><i class="fas fa-circle-info"></i> About</a></div>
-    <div class="nav-item logout"><a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></div>
-  </nav>
-</header>
-
-<main>
   <div class="container">
 
-    <!-- tools row -->
-    <div class="tools">
-      <div class="filter-wrap">
-        <button class="btn" id="filterBtn" type="button">
-          <i class="fa fa-filter"></i> Filter By Position <i class="fa fa-caret-down" aria-hidden="true"></i>
-        </button>
-        <div class="filter-menu" id="filterMenu" role="menu" aria-label="Filter positions">
-          <!-- All -->
-          <label class="filter-option">
-            <input type="radio" name="posFilter" value="__ALL__" checked />
-            <div class="fo-text">
-              <span class="fo-title">All</span>
-              <span class="fo-sub">Show all positions</span>
-            </div>
-          </label>
-          <?php foreach($positions as $p): ?>
-            <label class="filter-option">
-              <input type="radio" name="posFilter" value="<?php echo htmlspecialchars($p); ?>" />
-              <div class="fo-text">
-                <span class="fo-title"><?php echo htmlspecialchars($p); ?></span>
-                <span class="fo-sub">Only <?php echo htmlspecialchars($p); ?></span>
-              </div>
-            </label>
-          <?php endforeach; ?>
+    <!-- FILTER BAR -->
+    <form id="filtersForm" class="card filters" method="GET" action="<?php echo h($_SERVER['PHP_SELF']); ?>">
+      <div class="row">
+        <div class="field">
+          <label for="department">Department</label>
+          <select id="department" name="department">
+            <?php foreach ($depts as $d): ?>
+              <option value="<?php echo h($d); ?>" <?php echo ($d===$department)?'selected':''; ?>><?php echo h($d); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="course">Course</label>
+          <select id="course" name="course">
+            <?php foreach ($courses as $c): ?>
+              <option value="<?php echo h($c); ?>" <?php echo ($c===$course)?'selected':''; ?>><?php echo h($c); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="position">Position</label>
+          <select id="position" name="position">
+            <option value="All" <?php echo $position==='All'?'selected':''; ?>>All</option>
+            <?php foreach ($POS_ORDER as $p): ?>
+              <option value="<?php echo h($p); ?>" <?php echo ($position===$p)?'selected':''; ?>><?php echo h($p); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="campus">Campus</label>
+          <select id="campus" name="campus">
+            <?php foreach ($campuses as $cm): ?>
+              <option value="<?php echo h($cm); ?>" <?php echo ($cm===$campus)?'selected':''; ?>><?php echo $cm==='All'?'All':h($cm); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
+        <div class="right">
+          <a class="btn" href="<?php echo h($_SERVER['PHP_SELF']); ?>"><i class="fa fa-rotate-left"></i> Reset</a>
         </div>
       </div>
 
-      <div class="search-wrap">
-        <input type="search" id="searchBox" placeholder="Search candidate..." />
+      <!-- CONTROLS -->
+      <div class="controls">
+        <div class="search">
+          <i class="fa fa-search icon-left"></i>
+          <input id="liveSearch" name="q" type="text" value="<?php echo h($q); ?>" placeholder="Search name, party, year, course, department, campus…">
+          <i id="clearSearch" class="fa fa-xmark clear" title="Clear"></i>
+        </div>
+      </div>
+    </form>
+
+    <!-- Title -->
+    <div class="titleband">
+      <h1>Candidates — <?php echo h($deptTitle); ?> · <?php echo h($campTitle); ?></h1>
+      <div class="sub">
+        <?php
+          $bits=[];
+          if ($course!=='All')   $bits[]="Course: ".h($course);
+          if ($position!=='All') $bits[]="Position: ".h($position);
+          echo $bits?implode(' | ',$bits):'All courses • All positions';
+        ?>
       </div>
     </div>
 
-    <?php
-      // Render sections for each position
-      foreach ($positions as $position):
-        $cands = fetchCandidatesByPosition($conn, $position);
-        if (!$cands) continue;
-        $max_votes = max(array_column($cands, 'vote_count'));
-    ?>
-      <section class="section position-section" data-position="<?php echo htmlspecialchars($position); ?>">
-        <h2><?php echo htmlspecialchars($position); ?></h2>
-        <div class="grid">
-          <?php foreach($cands as $cand):
-            $h = ($max_votes > 0) ? round(($cand['vote_count'] / $max_votes) * 100, 2) : 0;
-            $fullName = $cand['FirstName'].' '.$cand['LastName'];
-          ?>
-            <article class="card candidate-card"
-                     data-name="<?php echo htmlspecialchars(strtolower($fullName)); ?>">
-              <div class="pos-label"><?php echo htmlspecialchars($position); ?></div>
-              <div class="bar-rail">
-                <div class="bar-tick t1"></div>
-                <div class="bar-tick t2"></div>
-                <div class="bar-tick t3"></div>
-                <div class="bar-tick t4"></div>
-                <div class="bar-fill" style="height: <?php echo $h; ?>%;"></div>
-              </div>
-              <div class="votes"><?php echo (int)$cand['vote_count']; ?> votes</div>
-              <img class="avatar" src="<?php echo $cand['Photo']; ?>" alt="<?php echo htmlspecialchars($fullName); ?>" />
-              <div class="name"><?php echo htmlspecialchars($fullName); ?></div>
+    <?php if (!$deptRender): ?>
+      <div class="dept-section"><div class="dept-caption">No results match your filters.</div></div>
+    <?php endif; ?>
 
-              <button class="pill view-btn"
-                data-photo="<?php echo htmlspecialchars($cand['Photo']); ?>"
-                data-name="<?php echo htmlspecialchars($fullName); ?>"
-                data-position="<?php echo htmlspecialchars($cand['Position']); ?>"
-                data-year="<?php echo htmlspecialchars($cand['Year']); ?>"
-                data-party="<?php echo htmlspecialchars($cand['Party']); ?>"
-                data-votes="<?php echo (int)$cand['vote_count']; ?>"
-                data-qual="<?php echo htmlspecialchars($cand['Qualification']); ?>">
-                <i class="fa fa-eye"></i> View
-              </button>
-            </article>
-          <?php endforeach; ?>
-        </div>
+    <?php
+    /* ===== RENDER BY DEPARTMENT, then by SELECTED POSITION(S) ===== */
+    foreach ($deptRender as $deptVal): ?>
+      <section class="dept-section">
+        <h2 class="dept-title"><?php echo h($deptVal); ?></h2>
+        <p class="dept-caption">
+          <?php
+            $bits=[];
+            $bits[] = ($campus==='All') ? 'All Campuses' : ('Campus: '.h($campus));
+            if ($course!=='All') $bits[] = 'Course: '.h($course);
+            echo implode(' • ', $bits);
+          ?>
+        </p>
+
+        <?php foreach ($posSectionList as $posName): ?>
+          <h3 class="pos-title"><?php echo h($posName); ?></h3>
+          <div class="grid">
+            <?php
+              // Build WHERE per section: Department + this Position + (Course/Campus)
+              $w2 = ["c.Department=?","c.Position=?"]; $p2 = [$deptVal,$posName]; $t2='ss';
+              if ($course!=='All'){ $w2[]="c.Course=?"; $p2[]=$course; $t2.='s'; }
+              if ($campus!=='All'){ $w2[]="COALESCE(c.Campus,'')=?"; $p2[]=$campus; $t2.='s'; }
+
+              $sql = "SELECT c.CandidateID, c.FirstName, c.LastName, c.Year, c.Photo, c.Party,
+                             c.Course, COALESCE(c.Campus,'') AS Campus,
+                             COALESCE(vv.cnt,0) AS vote_count
+                      FROM candidate c
+                      LEFT JOIN (SELECT CandidateID, COUNT(*) cnt FROM votes GROUP BY CandidateID) vv
+                             ON vv.CandidateID = c.CandidateID
+                      WHERE ".implode(' AND ',$w2)."
+                      ORDER BY vote_count DESC, c.LastName ASC, c.FirstName ASC";
+              $list=[]; $st2 = mysqli_prepare($conn,$sql);
+              if ($st2){
+                mysqli_stmt_bind_param($st2,$t2,...$p2);
+                mysqli_stmt_execute($st2);
+                $rs = mysqli_stmt_get_result($st2);
+                while ($rs && ($row=mysqli_fetch_assoc($rs))) $list[]=$row;
+                mysqli_stmt_close($st2);
+              }
+
+              if (!$list){
+                echo '<div class="card-cand" style="opacity:.7"><div class="meta">No candidates for this position.</div></div>';
+              } else {
+                foreach ($list as $c):
+                  $votes = int0($c['vote_count']);
+                  $name = trim(($c['FirstName']??'').' '.($c['LastName']??''));
+                  $photoPath = $c['Photo'] ?? '';
+                  $photo = (is_string($photoPath) && $photoPath!=='' && file_exists($photoPath)) ? $photoPath : 'images/default-avatar.png';
+                  $meta = trim(($c['Year']?:'').' • '.($c['Course']?:'').' • '.($c['Campus']?:'')); ?>
+                <div class="card-cand row" data-name="<?php echo h(strtolower($name.' '.$meta.' '.$c['Party'])); ?>">
+                  <img class="avatar" src="<?php echo h($photo); ?>" alt="<?php echo h($name); ?>">
+                  <div class="name"><?php echo h($name); ?></div>
+                  <div class="meta"><?php echo h($meta); ?></div>
+                  <?php if (!empty($c['Party'])): ?>
+                    <div class="meta"><strong>Party:</strong> <?php echo h($c['Party']); ?></div>
+                  <?php endif; ?>
+                  <div class="badge-votes"><?php echo $votes; ?> votes</div>
+                </div>
+                <?php endforeach;
+              }
+            ?>
+          </div>
+        <?php endforeach; ?>
       </section>
     <?php endforeach; ?>
 
-    <footer>© 2025 Online Election Voting System</footer>
+    <footer style="text-align:center; padding:20px 0; color:#666; font-size:14px;">© 2025 Online Election Voting System</footer>
   </div>
-</main>
 
-<!-- Modal -->
-<div id="candidateModal" class="modal-overlay" aria-hidden="true">
-  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-head">
-      <strong id="modalTitle">Candidate Information</strong>
-      <button class="close-btn" id="modalClose" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-  </div>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script>
-  // Filter dropdown open/close
-  (function(){
-    const btn = document.getElementById('filterBtn');
-    const menu = document.getElementById('filterMenu');
-    btn.addEventListener('click', (e)=>{ e.stopPropagation(); menu.style.display = menu.style.display==='block'?'none':'block'; });
-    document.addEventListener('click', (e)=>{ if(!e.target.closest('.filter-wrap')) menu.style.display='none'; });
-  })();
+/* --- Dependent Course list + auto-submit --- */
+(function(){
+  const form = document.getElementById('filtersForm');
+  const selDept = document.getElementById('department');
+  const selCourse = document.getElementById('course');
+  const selPos = document.getElementById('position');
+  const selCampus = document.getElementById('campus');
 
-  // Search + position filter (like screenshot behavior)
-  (function(){
-    const search = document.getElementById('searchBox');
-    const radios = document.querySelectorAll('input[name="posFilter"]');
-    const sections = Array.from(document.querySelectorAll('.position-section'));
+  const map = <?php
+    $out = [];
+    foreach ($deptCourseMap as $d=>$arr) $out[$d] = array_keys($arr);
+    echo json_encode($out, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  ?>;
 
-    function apply(){
-      const q = search.value.trim().toLowerCase();
-      const selected = document.querySelector('input[name="posFilter"]:checked')?.value || '__ALL__';
+  const allCourses = <?php
+    $all = [];
+    $qc2 = mysqli_query($conn,"SELECT DISTINCT Course c FROM candidate WHERE Course IS NOT NULL AND TRIM(Course)<>'' ORDER BY Course");
+    while ($qc2 && ($r=mysqli_fetch_assoc($qc2))) $all[]=$r['c'];
+    echo json_encode($all, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+  ?>;
 
-      sections.forEach(sec => {
-        const pos = sec.dataset.position;
-        let any = false;
-        // filter each candidate card inside
-        sec.querySelectorAll('.candidate-card').forEach(card => {
-          const matchText = !q || card.dataset.name.includes(q);
-          const show = matchText;
-          card.style.display = show ? '' : 'none';
-          if(show) any = true;
-        });
-        // hide section if no card matches OR position mismatched
-        const posOk = (selected === '__ALL__' || selected === pos);
-        sec.style.display = (any && posOk) ? '' : 'none';
-      });
-    }
-    search.addEventListener('input', apply);
-    radios.forEach(r => r.addEventListener('change', () => {
-      document.getElementById('filterMenu').style.display='none';
-      apply();
-    }));
-    apply();
-  })();
-
-  // Modal behavior
-  (function(){
-    const overlay = document.getElementById('candidateModal');
-    const closeBtn = document.getElementById('modalClose');
-    const body = document.getElementById('modalBody');
-
-    function openModal(data){
-      body.innerHTML = `
-        <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start;">
-          <div style="flex:0 0 200px; text-align:center;">
-            <img src="${data.photo}" alt="Photo" style="width:100%; max-width:200px; height:auto; border-radius:12px; border:3px solid #e9eff7;">
-            <p style="margin-top:10px; font-weight:800; color:#0a2e5c;">${data.name}</p>
-          </div>
-          <div style="flex:1; min-width:240px;">
-            <p><strong>Position:</strong> ${data.position || '-'}</p>
-            <p><strong>Year:</strong> ${data.year || '-'}</p>
-            <p><strong>Party:</strong> ${data.party || '-'}</p>
-            <p><strong>Total Votes:</strong> ${data.votes || 0}</p>
-            <p><strong>Qualification:</strong><br>${(data.qual||'').replace(/\n/g,'<br>')}</p>
-          </div>
-        </div>`;
-      overlay.classList.add('show');
-      overlay.setAttribute('aria-hidden','false');
-    }
-    function closeModal(){
-      overlay.classList.remove('show');
-      overlay.setAttribute('aria-hidden','true');
-    }
-
-    document.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.view-btn');
-      if(btn){
-        e.preventDefault();
-        openModal({
-          photo: btn.dataset.photo || '',
-          name: btn.dataset.name || '',
-          position: btn.dataset.position || '',
-          year: btn.dataset.year || '',
-          party: btn.dataset.party || '',
-          votes: btn.dataset.votes || '0',
-          qual: btn.dataset.qual || ''
-        });
-      }
+  function rebuildCourses(dept, keep){
+    const current = keep ? selCourse.value : 'All';
+    const options = ['All'].concat(dept==='All' ? allCourses : (map[dept] || []));
+    selCourse.innerHTML = '';
+    options.forEach(v=>{
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v===current) o.selected = true;
+      selCourse.appendChild(o);
     });
-    closeBtn.addEventListener('click', closeModal);
-    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeModal(); });
-    document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeModal(); });
-  })();
+  }
+
+  selDept.addEventListener('change', ()=>{ rebuildCourses(selDept.value,false); form.submit(); });
+  selCourse.addEventListener('change', ()=> form.submit());
+  selPos.addEventListener('change', ()=> form.submit());
+  selCampus.addEventListener('change', ()=> form.submit());
+
+  rebuildCourses(selDept.value, true);
+})();
+
+/* --- Live search on cards --- */
+(function(){
+  const input = document.getElementById('liveSearch');
+  const clear = document.getElementById('clearSearch');
+  const allCards = Array.from(document.querySelectorAll('.card-cand'));
+  if(!input) return;
+  function run(){
+    const term = (input.value || '').trim().toLowerCase();
+    allCards.forEach(card=>{
+      const hay = (card.getAttribute('data-name') || '').toLowerCase();
+      card.style.display = !term || hay.includes(term) ? '' : 'none';
+    });
+    if (clear) clear.style.display = input.value ? 'block' : 'none';
+  }
+  input.addEventListener('input', run);
+  if (clear) clear.addEventListener('click', ()=>{ input.value=''; run(); });
+  if (input.value) run();
+})();
 </script>
 </body>
 </html>

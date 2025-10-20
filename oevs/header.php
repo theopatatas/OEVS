@@ -1,128 +1,137 @@
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<html>		
-<head>
-<title>Online Voting System</title>
-<script src="admin/js/jquery-1.7.2.min.js" type="text/javascript"></script>
-		<link rel="stylesheet" href="admin/css/bootstrap-responsive.css" />
-<script type="text/javascript" src="admin/js/bootstrap.js"></script>
-<script type="text/javascript" src="admin/js/bootstrap-transition.js"></script>
-<script type="text/javascript" src="admin/js/bootstrap-collapse.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-
-	
-		<!----hover pop up -->
-<script src="admin/js/main.js" type="text/javascript"></script>
-<script src="admin/js/mouseover_popup.js" type="text/javascript"></script>
-
-
-<div style="display: none;
- position: absolute;
- z-index:100;
- color:white;
- width:auto;
- height:auto;"
- id="preview_div"></div>
-
-
-
-
-
-		
-<script type="text/javascript" src="admin/js/qtip/jquery.qtip.min.js"></script>
-<link href="admin/js/qtip/jquery.qtip.min.css" rel="stylesheet" type="text/css" media="screen, projection">
-		
-<script type="text/javascript" language="JavaScript">
-<!-- Copyright 2002 Bontrager Connection, LLC
-
-function getCalendarDate()
-{
-   var months = new Array(13);
-   months[0]  = "January";
-   months[1]  = "February";
-   months[2]  = "March";
-   months[3]  = "April";
-   months[4]  = "May";
-   months[5]  = "June";
-   months[6]  = "July";
-   months[7]  = "August";
-   months[8]  = "September";
-   months[9]  = "October";
-   months[10] = "November";
-   months[11] = "December";
-   var now         = new Date();
-   var monthnumber = now.getMonth();
-   var monthname   = months[monthnumber];
-   var monthday    = now.getDate();
-   var year        = now.getYear();
-   if(year < 2000) { year = year + 1900; }
-   var dateString = monthname +
-                    ' ' +
-                    monthday +
-                    ', ' +
-                    year;
-   return dateString;
-} // function getCalendarDate()
-//-->
-</script>	
-<script language="javascript" type="text/javascript">
-/* Visit http://www.yaldex.com/ for full source code
-and get more free JavaScript, CSS and DHTML scripts! */
-<!-- Begin
-var timerID = null;
-var timerRunning = false;
-function stopclock (){
-if(timerRunning)
-clearTimeout(timerID);
-timerRunning = false;
-}
-function showtime () {
-var now = new Date();
-var hours = now.getHours();
-var minutes = now.getMinutes();
-var seconds = now.getSeconds()
-var timeValue = "" + ((hours >12) ? hours -12 :hours)
-if (timeValue == "0") timeValue = 12;
-timeValue += ((minutes < 10) ? ":0" : ":") + minutes
-timeValue += ((seconds < 10) ? ":0" : ":") + seconds
-timeValue += (hours >= 12) ? " P.M." : " A.M."
-document.clock.face.value = timeValue;
-timerID = setTimeout("showtime()",1000);
-timerRunning = true;
-}
-function startclock() {
-stopclock();
-showtime();
-}
-window.onload=startclock;
-// End -->
-</SCRIPT>		
-
-<?php include('admin/hover.php'); ?>
-    
-	
-<link rel="icon" href="admin/images/chmsc.png" type="image" />
-
-
-    
-    <script type="text/javascript" src="admin/js/eye.js"></script>
-    <script type="text/javascript" src="admin/js/spacegallery.js"></script>
-    <script type="text/javascript" src="admin/js/layout.js"></script>
-	
-	 <link rel="stylesheet" type="text/css" href="admin/css/bootstrap.css" media="screen, projection" />
-	 <link rel="stylesheet" type="text/css" href="admin/css/bootstrap.css" media="screen, projection" />
-	 <link rel="stylesheet" type="text/css" href="admin/css/bootstrap-responsive.css" media="screen, projection" />
-	 <link rel="stylesheet" href="admin/css/font-awesome.css">
-
-<link rel="stylesheet" type="text/css" href="admin/css/Home.css" media="screen, projection" />
-
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <?php
-function _redirect($url=''){
-	if(!empty($url)){
-		echo "<script> location.href = '".$url."' </script>";
-	}
-}
+// header.php
+// Expects: $campusFilter, $showAll (bool), $hasVoted (bool)
+$campusFilter = $campusFilter ?? null;
+$showAll      = isset($showAll) ? (bool)$showAll : false;
+$hasVoted     = isset($hasVoted) ? (bool)$hasVoted : false;
 ?>
+<!-- Accent bar + sticky header + breathing gap -->
+<style>
+  :root{
+    --brand:#1c3770; --accent:#3b2a97; --line:#e7edf6;
+  }
+  .accent{height:4px;background:linear-gradient(90deg,var(--accent),var(--brand));}
+  header.headerbar{
+    background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+    padding-top:env(safe-area-inset-top, 0px);
+    box-shadow:0 2px 10px rgba(12,27,64,.06);
+  }
+  @supports(padding: max(0px)){
+    header.headerbar{ padding-top:max(8px, env(safe-area-inset-top)); }
+  }
+  .header-shell{max-width:none;margin:0;padding:0}
+  .header-inner{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 12px 10px 12px; gap:10px;
+    padding-left:calc(12px + env(safe-area-inset-left, 0px));
+    padding-right:calc(12px + env(safe-area-inset-right, 0px));
+  }
+  .header-left{display:flex;align-items:center;gap:10px;min-width:0}
+  .header-logo{height:32px;width:auto}
+  .titles{min-width:0}
+  .titles .t1{
+    font-weight:800;font-size:18px;line-height:1.05;letter-spacing:.2px;color:var(--brand);text-transform:uppercase;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw
+  }
+  .titles .t2{
+    margin-top:1px;font-weight:700;font-size:12.5px;color:var(--brand);opacity:.9;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw
+  }
+  .header-actions{
+    display:flex;gap:8px;align-items:center;flex-wrap:nowrap;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+    max-width:50vw;
+  }
+  .header-actions::-webkit-scrollbar{display:none}
+  .btn{border-radius:8px;border:1px solid var(--line);background:#fff;display:inline-flex;align-items:center;gap:6px;font-weight:600;flex:0 0 auto}
+  .btn i{font-size:12px}
+  .btn span{font-size:12.5px}
+  .btn.btn-sm{padding:6px 10px}
+  .btn.primary{background:#1c3770;border-color:#1c3770;color:#fff}
+  .btn[aria-disabled="true"]{opacity:.55;cursor:not-allowed}
+  .page-top-gap{height:14px}
 
+  /* Mobile: stack header cleanly */
+  @media (max-width: 640px){
+    .header-inner{flex-wrap:wrap;gap:8px;}
+    .header-left{width:100%;justify-content:space-between;}
+    .header-actions{order:2;width:100%;max-width:100%;justify-content:flex-start;}
+    .titles .t2{display:none;}
+    .btn.btn-sm{padding:6px 8px}
+    .btn span{display:none}
+    .page-top-gap{height:14px}
+  }
+</style>
+
+<div class="accent" aria-hidden="true"></div>
+
+<header class="headerbar" role="banner">
+  <div class="header-shell">
+    <div class="header-inner">
+      <div class="header-left">
+        <img class="header-logo" src="pic/au.png" alt="AU logo" loading="lazy" decoding="async">
+        <div class="titles">
+          <div class="t1">ONLINE ELECTION VOTING SYSTEM</div>
+          <div class="t2">Phinma Araullo University</div>
+        </div>
+      </div>
+
+      <nav class="header-actions" aria-label="Header actions">
+        <?php if ($showAll): ?>
+          <a class="btn btn-sm" href="home.php" title="Show my campus only">
+            <i class="fa-solid fa-filter"></i><span>My Campus (<?= htmlspecialchars($campusFilter ?: '—', ENT_QUOTES, 'UTF-8') ?>)</span>
+          </a>
+        <?php else: ?>
+          <a class="btn btn-sm" href="home.php?all=1" title="Show all campuses">
+            <i class="fa-solid fa-list-ul"></i><span>All Campuses</span>
+          </a>
+        <?php endif; ?>
+
+        <!-- Start Voting button -->
+        <a class="btn btn-sm primary"
+           href="<?= $hasVoted ? '#' : 'start_voting.php' ?>"
+           <?= $hasVoted ? 'aria-disabled="true" tabindex="-1"' : '' ?>
+           onclick="return startVoting(event)">
+          <i class="fa-solid fa-check-to-slot"></i>
+          <span><?= $hasVoted ? 'Already Voted' : 'Start Voting' ?></span>
+        </a>
+
+        <a class="btn btn-sm" href="logout.php" title="Logout">
+          <i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>
+        </a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="page-top-gap" aria-hidden="true"></div>
+
+<script>
+  // Flags for header actions
+  const OEVS = {
+    hasVoted: <?= $hasVoted ? 'true' : 'false' ?>,
+    showAll:  <?= $showAll  ? 'true' : 'false' ?>,
+    campus:   <?= json_encode($campusFilter ?? '') ?>
+  };
+
+  function startVoting(e){
+    if (OEVS.hasVoted){
+      e.preventDefault();
+      alert("You’ve already voted. The ballot is locked.");
+      return false;
+    }
+    if (!confirm("Start voting now?")){
+      e.preventDefault();
+      return false;
+    }
+    // Hit the starter endpoint so the ballot lets us in
+    let url = "start_voting.php";
+    if (!OEVS.showAll && OEVS.campus){
+      const q = new URLSearchParams({ campus: OEVS.campus });
+      url += "?" + q.toString();
+    }
+    window.location.href = url;
+    e.preventDefault();
+    return false;
+  }
+</script>

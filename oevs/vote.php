@@ -1,240 +1,103 @@
 <?php
-ob_start();
+// (dev) show errors while wiring
+ini_set('display_errors', 1); ini_set('display_startup_errors', 1); error_reporting(E_ALL);
+
 session_start();
-include('dbcon.php');
-include('header.php');
+if (empty($_SESSION['user'])) { header('Location: index.php'); exit; }
+if (empty($_SESSION['ballot_started'])) { header('Location: home.php?msg=ballot_not_started'); exit; }
 
+$user   = $_SESSION['user'];
+$campus = $_GET['campus'] ?? ($_SESSION['ballot_campus'] ?? ($user['campus'] ?? $user['Campus'] ?? null));
+$dept   = $user['dept'] ?? $user['Department'] ?? null;
 
-$positions = [
-    'president',
-    'vice_president',
-    'governor',
-    'vice_governor',
-    'secretary',
-    'treasurer',
-    'social_media_officer',
-    'representative'
-];
+require __DIR__ . '/dbcon.php';
 
-if (isset($_POST['final_submit'])) {
-    $session_id = $_SESSION['id'];
-    $votes = [];
-    $room = mysqli_real_escape_string($conn, $_POST['room'] ?? '');
-    date_default_timezone_set('Asia/Manila');
-    $dateVoted = date('Y-m-d');
-    $timeVoted = date('H:i:s');
-
-    $error = false;
-    foreach ($positions as $pos) {
-        $candidateID = $_POST[$pos] ?? '';
-        if (!empty($candidateID)) {
-            $candidateID = mysqli_real_escape_string($conn, $candidateID);
-            if (!mysqli_query($conn, "INSERT INTO votes (CandidateID) VALUES ('$candidateID')")) {
-                $error = true;
-                break;
-            }
-        }
-    }
-
-    if (!$error) {
-        $updateQuery = "
-            UPDATE voters 
-            SET Status='Voted', Room='$room', DateVoted='$dateVoted', TimeVoted='$timeVoted' 
-            WHERE VoterID='$session_id'
-        ";
-
-        if (mysqli_query($conn, $updateQuery)) {
-            header("Location: thankyou.php");
-            exit;
-        }
-    }
-
-    echo "<script>alert('An error occurred while submitting your vote. Please try again.'); window.history.back();</script>";
+/* db helpers */
+function db_driver(){ foreach (['pdo','conn','con'] as $v) if (isset($GLOBALS[$v])) return $v; throw new RuntimeException('No DB handle'); }
+function db_all($sql,$params=[]){
+  $d=db_driver();
+  if ($d==='pdo' && $GLOBALS['pdo'] instanceof PDO){ $st=$GLOBALS['pdo']->prepare($sql); $st->execute($params); return $st->fetchAll(PDO::FETCH_ASSOC); }
+  $m=$GLOBALS[$d]; if($params){$st=$m->prepare($sql);$types=str_repeat('s',count($params));$st->bind_param($types,...$params);$st->execute();$res=$st->get_result();} else {$res=$m->query($sql);}
+  return $res?$res->fetch_all(MYSQLI_ASSOC):[];
 }
 
-function getCandidateName($conn, $candidateID) {
-    $candidateID = mysqli_real_escape_string($conn, $candidateID);
-    $result = mysqli_query($conn, "SELECT FirstName, LastName FROM candidate WHERE CandidateID='$candidateID'");
-    if ($row = mysqli_fetch_assoc($result)) {
-        return htmlspecialchars($row['FirstName'] . ' ' . $row['LastName']);
-    }
-    return 'Unknown Candidate';
-}
+/* load positions + candidates — ALWAYS limited by department (and campus if given) */
+$where  = "WHERE Department = ?";
+$params = [$dept];
+if ($campus){ $where .= " AND Campus = ?"; $params[] = $campus; }
+
+$rows = db_all("SELECT CandidateID, Position, Party, FirstName, MiddleName, LastName, Course, Gender, Year
+                FROM candidate $where ORDER BY Position, LastName, FirstName", $params);
+
+/* group for rendering */
+$groups = [];
+foreach ($rows as $r) { $pos = trim($r['Position'] ?: 'Unspecified'); $groups[$pos][] = $r; }
 ?>
-
-<link rel="stylesheet" type="text/css" href="admin/css/style.css" />
-<script src="jquery.iphone-switch.js" type="text/javascript"></script>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Ballot | OEVS Voting 2025</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root{ --bg:#f6f8fc; --ink:#0f2653; --muted:#5b6b86; --card:#fff; --line:#e7edf6; --soft:rgba(12,27,64,.06);
+           --r:14px; --pad:18px; --gap:14px; --site-width:960px; }
+    *{ box-sizing:border-box } html,body{ height:100% }
+    body{ margin:0; background:var(--bg); color:var(--ink); font:14px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif }
+    .wrap{ max-width:var(--site-width); margin:0 auto; padding:18px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:0 10px 28px var(--soft); padding:var(--pad) }
+    h1{ font-size:20px; margin:0 0 6px } .muted{ color:var(--muted); font-size:12.5px }
+    .pos{ margin-top:18px } .pos h2{ font-size:16px; margin:0 0 10px }
+    .grid{ display:grid; gap:var(--gap); grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); }
+    .cand{ display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff }
+    .cand + .cand{ margin-top:10px } .btn{ display:inline-flex; gap:8px; align-items:center; border-radius:10px; border:1px solid var(--line); padding:10px 14px; font-weight:700; background:#fff }
+    .btn.primary{ background:#1c3770; border-color:#1c3770; color:#fff } .actions{ display:flex; gap:10px; margin-top:20px }
+  </style>
 </head>
-<style>
-/* Ballot Heading */
-h2 {
-  text-align: center;
-  color: #002f6c;
-  font-weight: bold;
-  margin-bottom: 30px;
-}
-
-/* Ballot container */
-.ballot1 {
-  max-width: 700px;  /* use the larger default you had */
-  margin: 30px auto;
-  padding: 20px;
-  border: 1px solid #000;
-  border-radius: 10px;
-  background-color: #f9f9f9;
-  box-shadow: 0 2px 8px #000;
-  box-sizing: border-box;
-}
-
-/* Grid */
-.grid1 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-}
-
-/* Candidate card */
-.grid1 > div {
-  padding: 15px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background: #fff;
-}
-
-/* Room input */
-.cent1 {
-  margin-top: 20px;
-}
-
-.cent1 label {
-  font-weight: bold;
-  color: #000;
-}
-
-.cent1 input[type="text"] {
-  width: 100%;
-  padding: 10px;
-  margin-top: 5px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  box-sizing: border-box;
-}
-
-/* Submit button */
-.btn-success {
-  background-color: #002f6c;
-  border: none;
-  padding: 12px 30px;
-  font-size: 18px;
-  font-weight: bold;
-  color: #fff;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.btn-success:hover {
-  background-color: #000;
-}
-
-/* ✅ Mobile Responsive */
-@media (max-width: 600px) {
-     .ballot1-heading {
-    text-align: center; /* redundant but ensures no overrides */
-    font-size: 24px;    /* smaller for mobile, optional */
-    margin-bottom: 20px;
-    display: block;     /* ensures block-level centering */
-    width: 40%;        /* ensures full width to center text */
-  }
-  .grid1 {
-    grid-template-columns: 1fr; /* stack vertically */
-  }
-
-  .ballot1 {
-    max-width: 38%;   /* ✅ this is correct — wide enough for mobile */
-    padding: 15px 20px;
-    margin: 20px ; /* center it horizontally */
-  }
-
-  h2 {
-    font-size: 20px;
-    text-align: center;
-  }
-
-  .btn-success {
-    width: 100%;  /* full width for easy tapping */
-    font-size: 10px;
-  }
-}
-
-</style>
-
 <body>
-<?php include('nav_top.php'); ?>
-<div class="wrapper">
-<div class="home_body">
-<?php include('homesidebar.php'); ?>
- <hr class="footer-line1">
+  <?php require __DIR__.'/header.php'; ?>
 
- <h2 class="ballot1-heading">BALLOT CONFIRMATION</h2>
+  <main class="wrap">
+    <form class="card" method="post" action="submit_vote.php">
+      <h1>Ballot</h1>
+      <div class="muted">
+        <?= htmlspecialchars($user['name'] ?? $user['SchoolID'] ?? 'Student', ENT_QUOTES, 'UTF-8') ?>
+        • Department: <?= htmlspecialchars($dept ?? '—', ENT_QUOTES, 'UTF-8') ?>
+        <?= $campus ? ' • Campus: '.htmlspecialchars($campus, ENT_QUOTES, 'UTF-8') : '' ?>
+      </div>
 
-<form method="POST">
-    <div class="ballot1">
-
-        <div class="grid1">
-            <?php
-            foreach ($positions as $index => $pos) {
-                $display_name = ucwords(str_replace('_', ' ', $pos));
-                $candidateID = $_POST[$pos] ?? '';
-
-                echo '<div style="padding: 15px; border: 1px solid #ccc; border-radius: 8px; background: #fff;">';
-                echo '<p style="margin: 0 0 5px; font-weight: bold; color: #002f6c;">' . $display_name . '</p>';
-
-                if (empty($candidateID)) {
-                    echo '<i style="color: #888;">No Candidate Selected</i>';
-                } else {
-                    echo '<p style="color: #000; margin: 0;">' . getCandidateName($conn, $candidateID) . '</p>';
-                    echo '<input type="hidden" name="' . htmlspecialchars($pos) . '" value="' . htmlspecialchars($candidateID) . '" />';
-                }
-
-                echo '</div>';
-            }
+      <?php if (!$groups): ?>
+        <p class="muted" style="margin-top:8px">No candidates found for your department.</p>
+      <?php else: foreach ($groups as $position => $cands): ?>
+        <section class="pos">
+          <h2><?= htmlspecialchars($position, ENT_QUOTES, 'UTF-8') ?></h2>
+          <div class="grid">
+            <?php foreach ($cands as $c):
+              $name = trim(preg_replace('/\s+/', ' ', ($c['FirstName'] ?? '').' '.($c['MiddleName'] ?? '').' '.($c['LastName'] ?? '')));
+              $label = $name ?: ('Candidate #'.$c['CandidateID']);
+              $meta  = implode(' • ', array_filter([ $c['Party'] ?: 'Independent', $c['Course'] ?? null, $c['Gender'] ?? null, $c['Year'] ?? null ]));
+              $input = 'pos['.$position.']'; $id='p'.md5($position).'_'.$c['CandidateID'];
             ?>
-        </div>
+              <label class="cand" for="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>">
+                <input type="radio" id="<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>"
+                       name="<?= htmlspecialchars($input, ENT_QUOTES, 'UTF-8') ?>"
+                       value="<?= (int)$c['CandidateID'] ?>" required>
+                <div><div style="font-weight:700"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></div>
+                <small style="color:#5b6b86"><?= htmlspecialchars($meta, ENT_QUOTES, 'UTF-8') ?></small></div>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </section>
+      <?php endforeach; endif; ?>
 
-        <!-- Room Input -->
-
-
-        <!-- Submit Button -->
-        <div style="text-align: center; margin-top: 30px;">
-    <button 
-        name="final_submit" 
-        type="submit" 
-        class="btn btn-success"
-        style="
-            background-color: #002f6c;
-            border: none;
-            padding: 12px 30px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: background-color 0.3s ease;
-        "
-        onmouseover="this.style.backgroundColor='#002f6c';"
-        onmouseout="this.style.backgroundColor='#002f6c';"
-    >
-        <i class="icon-save icon-large"></i>&nbsp; Submit Final Votes
-    </button>
-</div>
-        </div>
-    </div>
-</form>
-
-<div class="foot" style="margin-top: 40px;">
-    <?php include('footer1.php'); ?>
-</div>
+      <div class="actions">
+        <button class="btn" type="button" onclick="history.back()"><i class="fa-solid fa-arrow-left"></i>Back</button>
+        <button class="btn primary" type="submit"><i class="fa-solid fa-paper-plane"></i>Submit Ballot</button>
+      </div>
+      <input type="hidden" name="campus" value="<?= htmlspecialchars($campus ?? '', ENT_QUOTES, 'UTF-8') ?>">
+    </form>
+  </main>
 </body>
 </html>
-<?php ob_end_flush(); ?>

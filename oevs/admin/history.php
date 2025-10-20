@@ -4,9 +4,14 @@ include('dbcon.php');
 
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
-// Pull history (latest first)
+// Pull history (newest first) using primary key for true recency
 $history = [];
-$q = mysqli_query($conn, "SELECT history_id, `date`, `action`, `data`, `user` FROM history ORDER BY `date` DESC, history_id DESC");
+$q = mysqli_query(
+  $conn,
+  "SELECT history_id, `date`, `action`, `data`, `user`
+   FROM history
+   ORDER BY history_id DESC"
+);
 while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
 ?>
 <!DOCTYPE html>
@@ -16,7 +21,6 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
   <title>History | Online Election Voting System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Remove if header.php already loads them -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -24,14 +28,13 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
     :root{
       --primary:#002f6c; --accent:#0056b3; --bg:#f4f6f8; --white:#fff;
       --shadow:0 6px 18px rgba(0,0,0,.08); --muted:#6b7280; --radius:14px;
-      --ink:#0b1324; --ink-soft:#2a3a52;
+      --ink:#0b1324; --ink-soft:#2a3a52; --danger:#c62828; --danger-bg:#fff1f1;
     }
     *{box-sizing:border-box}
     body{margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Arial; background:var(--bg); color:var(--ink)}
 
     .container{max-width:1280px; margin:22px auto; padding:0 16px}
 
-    /* Toolbar */
     .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:12px}
     .field{display:flex; flex-direction:column; gap:6px}
     .field label{font-size:12px; font-weight:700; color:var(--muted)}
@@ -41,14 +44,13 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
       border-radius:10px; outline:none; min-width:220px; height:44px;
     }
 
-    /* Search styled exactly like other inputs */
     .searchbox{position:relative}
     .searchbox i{
       position:absolute; left:12px; top:50%; transform:translateY(-50%);
       font-size:15px; color:#8292a6; opacity:.95; pointer-events:none; width:18px; height:18px;
     }
     .searchbox input{
-      height:44px; padding:10px 12px; padding-left:44px; /* room for icon */
+      height:44px; padding:10px 12px; padding-left:44px;
       border:1px solid #d6e0ef; background:#fff; color:var(--ink-soft);
       border-radius:10px; outline:none; min-width:220px; box-sizing:border-box;
     }
@@ -61,7 +63,6 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
     .btn.primary{background:var(--primary); color:#fff; border-color:var(--primary)}
     .btn.primary:hover{filter:brightness(.98)}
 
-    /* Card + Table */
     .card{background:#fff; border:1px solid #e8eef7; border-radius:var(--radius); box-shadow:var(--shadow)}
     .card-h{padding:14px 16px; border-bottom:1px solid #eef2f8; display:flex; align-items:center; justify-content:space-between}
     .card-h h2{margin:0; font-size:18px; color:#000}
@@ -76,6 +77,18 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
 
     .meta{display:flex; gap:8px; align-items:center; color:#334e7b}
     .meta .dot{width:6px; height:6px; background:#9ab4d6; border-radius:50%}
+
+    /* New: deletion highlight */
+    .is-deleted td{color:var(--danger)}
+    .flash{
+      animation: flashIn 2.2s ease-out 1;
+      background:var(--danger-bg);
+    }
+    @keyframes flashIn{
+      0%{background:#ffd6d6}
+      60%{background:var(--danger-bg)}
+      100%{background:transparent}
+    }
 
     @media (max-width:720px){
       .input, select{min-width:unset}
@@ -109,38 +122,26 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
         <input id="to" type="date" class="input">
       </div>
 
-      <!-- Month filter (replaces Sort) -->
       <div class="field">
         <label for="monthSel">Month</label>
         <select id="monthSel" class="input" style="min-width:180px">
           <option value="">All months</option>
-          <option value="1">January</option>
-          <option value="2">February</option>
-          <option value="3">March</option>
-          <option value="4">April</option>
-          <option value="5">May</option>
-          <option value="6">June</option>
-          <option value="7">July</option>
-          <option value="8">August</option>
-          <option value="9">September</option>
-          <option value="10">October</option>
-          <option value="11">November</option>
-          <option value="12">December</option>
+          <option value="1">January</option><option value="2">February</option><option value="3">March</option>
+          <option value="4">April</option><option value="5">May</option><option value="6">June</option>
+          <option value="7">July</option><option value="8">August</option><option value="9">September</option>
+          <option value="10">October</option><option value="11">November</option><option value="12">December</option>
         </select>
       </div>
 
-      <div class="field">
-        <label>&nbsp;</label>
+      <div class="field"><label>&nbsp;</label>
         <button type="button" id="applyDate" class="btn"><i class="fa fa-filter"></i> Filter</button>
       </div>
 
-      <div class="field">
-        <label>&nbsp;</label>
+      <div class="field"><label>&nbsp;</label>
         <button type="button" id="clearFilters" class="btn"><i class="fa fa-rotate-left"></i> Reset</button>
       </div>
 
-      <div class="field" style="margin-left:auto">
-        <label>&nbsp;</label>
+      <div class="field" style="margin-left:auto"><label>&nbsp;</label>
         <button type="button" id="exportCsv" class="btn primary"><i class="fa fa-file-export"></i> Export CSV</button>
       </div>
     </div>
@@ -166,7 +167,7 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
                 <th style="width:220px">User</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="historyTbody">
               <?php if (!$history): ?>
                 <tr><td colspan="4" class="empty">No history yet.</td></tr>
               <?php else: ?>
@@ -174,7 +175,8 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
                   $raw   = $r['date'];
                   $dateF = $raw ? date("F j, Y, g:i A", strtotime($raw)) : 'N/A';
                 ?>
-                  <tr data-date="<?php echo h($raw ?: ''); ?>">
+                  <tr data-id="<?php echo (int)$r['history_id']; ?>"
+                      data-date="<?php echo h($raw ?: ''); ?>">
                     <td><?php echo h($dateF); ?></td>
                     <td><?php echo h($r['action'] ?? ''); ?></td>
                     <td><?php echo h($r['data'] ?? ''); ?></td>
@@ -198,66 +200,49 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
   const from      = document.getElementById('from');
   const to        = document.getElementById('to');
   const monthSel  = document.getElementById('monthSel');
-  const applyBtn  = document.getElementById('applyDate');    // type="button"
-  const clearBtn  = document.getElementById('clearFilters'); // type="button"
+  const applyBtn  = document.getElementById('applyDate');
+  const clearBtn  = document.getElementById('clearFilters');
   const table     = document.getElementById('historyTable');
-  const rows      = Array.from(table.querySelectorAll('tbody tr'));
+  const tbody     = document.getElementById('historyTbody');
+  let   rows      = Array.from(tbody.querySelectorAll('tr'));
   const rowCount  = document.getElementById('rowCount');
   const exportBtn = document.getElementById('exportCsv');
 
-  // Parse DB date stored in data-date
-  function parseDate(d){
-    const t = Date.parse(d);
-    return isNaN(t) ? null : new Date(t);
-  }
-
-  // Inclusive range check
+  function parseDate(d){ const t = Date.parse(d); return isNaN(t) ? null : new Date(t); }
   function withinRange(d, fromV, toV){
-    if (!d) return false; // rows without a date won't pass a date-range filter
+    if (!d) return false;
     if (fromV && d < fromV) return false;
-    if (toV){
-      const end = new Date(toV);
-      end.setHours(23,59,59,999); // include whole "to" day
-      if (d > end) return false;
-    }
+    if (toV){ const end = new Date(toV); end.setHours(23,59,59,999); if (d > end) return false; }
     return true;
   }
 
-  // Date window explicitly applied by user
-  let appliedFrom = null;
-  let appliedTo   = null;
+  let appliedFrom = null, appliedTo = null;
 
   function filterRows(){
     const term = (qInput.value || '').trim().toLowerCase();
-    const monthPick = monthSel.value ? parseInt(monthSel.value, 10) : null; // 1..12 or null
+    const monthPick = monthSel.value ? parseInt(monthSel.value, 10) : null;
 
     let shown = 0;
     rows.forEach(tr=>{
+      if (tr.classList.contains('removed')) return;
       const txt  = tr.innerText.toLowerCase();
       const okQ  = term === '' || txt.includes(term);
 
       const raw  = tr.getAttribute('data-date') || '';
       const d    = parseDate(raw);
-
-      // Month filter (optional)
       const okM  = !monthPick || (d && (d.getMonth()+1) === monthPick);
-
-      // Date range filter (only if user pressed Filter)
       const okD  = (!appliedFrom && !appliedTo) ? true : withinRange(d, appliedFrom, appliedTo);
 
       const ok   = okQ && okM && okD;
       tr.style.display = ok ? '' : 'none';
       if (ok) shown++;
     });
-
     rowCount.textContent = shown;
   }
 
-  // Live search + month change always re-filter
   qInput.addEventListener('input', filterRows);
   monthSel.addEventListener('change', filterRows);
 
-  // Pressing Filter locks in the selected date range and applies it
   applyBtn.addEventListener('click', (e)=>{
     e.preventDefault();
     appliedFrom = from.value ? new Date(from.value + 'T00:00:00') : null;
@@ -265,35 +250,75 @@ while ($q && ($r = mysqli_fetch_assoc($q))) { $history[] = $r; }
     filterRows();
   });
 
-  // Reset clears everything (including applied date window)
   clearBtn.addEventListener('click', ()=>{
-    qInput.value = '';
-    from.value   = '';
-    to.value     = '';
-    monthSel.value = '';
-    appliedFrom = null;
-    appliedTo   = null;
+    qInput.value = ''; from.value = ''; to.value = ''; monthSel.value = '';
+    appliedFrom = null; appliedTo = null;
     filterRows();
   });
 
-  // Export only visible rows
   exportBtn.addEventListener('click', ()=>{
+    const header = Array.from(table.tHead.rows[0].cells).map(th => th.innerText.trim());
     const visible = rows.filter(tr => tr.style.display !== 'none');
     if (!visible.length) return;
-
-    const header = Array.from(table.tHead.rows[0].cells).map(th => th.innerText.trim());
     const data = visible.map(tr => Array.from(tr.cells).map(td => td.innerText.replaceAll('\n',' ').trim()));
-
     const csv = [header, ...data].map(r => r.map(v => `"${v.replaceAll('"','""')}"`).join(',')).join('\r\n');
     const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
     const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'history_export.csv';
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
+    const a    = document.createElement('a'); a.href=url; a.download='history_export.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   });
 
-  // Initial render (no date window applied yet)
+  // ---------- Real-time polling ----------
+  function getLastId(){
+    let max = 0;
+    rows.forEach(tr => { const id = parseInt(tr.getAttribute('data-id')||'0',10); if (id>max) max=id; });
+    return max;
+  }
+  let lastId = getLastId();
+
+  function makeRow(r){
+    const tr = document.createElement('tr');
+    tr.setAttribute('data-id', r.history_id);
+    tr.setAttribute('data-date', r.date_raw || '');
+
+    // mark deleted events
+    const isDeleted = /^deleted\s+voter/i.test(r.action);
+    if (isDeleted) tr.classList.add('is-deleted','flash');
+
+    tr.innerHTML = `
+      <td>${r.date_fmt}</td>
+      <td>${r.action}</td>
+      <td>${r.data}</td>
+      <td>${r.user}</td>
+    `;
+    // remove flash bg after a few seconds
+    if (isDeleted) setTimeout(()=>tr.classList.remove('flash'), 2300);
+    return tr;
+  }
+
+  async function poll(){
+    try{
+      const res = await fetch('history_feed.php?after=' + encodeURIComponent(lastId), {cache:'no-store'});
+      if (!res.ok) return;
+      const payload = await res.json(); // {rows:[...]}
+      if (!payload || !Array.isArray(payload.rows) || !payload.rows.length) return;
+
+      // Prepend newest-first
+      payload.rows.forEach(item=>{
+        const tr = makeRow(item);
+        tbody.insertBefore(tr, tbody.firstChild);
+        rows.unshift(tr);
+        lastId = Math.max(lastId, parseInt(item.history_id,10));
+      });
+
+      filterRows(); // keep filters respected
+    }catch(e){ /* ignore transient errors */ }
+  }
+
+  // poll every 5s
+  setInterval(poll, 5000);
+
+  // Initial paint
   filterRows();
 })();
 </script>

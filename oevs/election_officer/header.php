@@ -1,185 +1,201 @@
-
-<html>		
-<head>
-<title>Online Election Voting Management System</title>
-<script src="js/jquery-1.7.2.min.js" type="text/javascript"></script>
-		
-<script type="text/javascript" src="js/bootstrap.js"></script>
-<script type="text/javascript" src="js/bootstrap-transition.js"></script>
-<script type="text/javascript" src="js/bootstrap-collapse.js"></script>
-<script type="text/javascript" src="js/bootstrap-tab.js"></script>
-
-
-<!----hover pop up -->
-<script src="js/main.js" type="text/javascript"></script>
-<script src="js/mouseover_popup.js" type="text/javascript"></script>
-
-
-
-
-<div style="display: none;
- position: absolute;
- color:white;
- z-index:100;
- width:auto;
- height:auto;"
- id="preview_div"></div>
-
-
-<!-- notify -->
-<link href="css/notify/jquery_notification.css" type="text/css" rel="stylesheet" media="screen, projection"/>
-<script type="text/javascript" src="js/notify/jquery_notification_v.1.js"></script>
-<!-- notify end -->
-
-<!-- datatable -->
-		<style type="text/css" title="currentStyle">
-			@import "css/datatable/demo_page.css";
-			@import "css/datatable/demo_table_jui.css";
-			@import "css/datatable/jquery-ui-1.8.4.custom.css";
-		</style>
-		
-		
-		<script type="text/javascript" language="javascript" src="js/dataTables/jquery.dataTables.js"></script>
-		<script type="text/javascript" charset="utf-8">
-			jQuery(document).ready(function() {
-oTable = jQuery('#log').dataTable({
-					"bJQueryUI": true,
-					"sPaginationType": "full_numbers"
-								} );
-				oTable = jQuery('#attendance').dataTable({
-					"bJQueryUI": true,
-					"sPaginationType": "full_numbers"
-								} );
-				oTable = jQuery('#record').dataTable({
-					"bJQueryUI": true,
-					"sPaginationType": "full_numbers"
-								} );
-				oTable = jQuery('#cadet_list').dataTable({
-					"bJQueryUI": true,
-					"sPaginationType": "full_numbers"
-								} );
-				oTable = jQuery('#passed').dataTable({
-					"bJQueryUI": true,
-					"sPaginationType": "full_numbers"
-								} );								
-								
-								
-				});		
-		</script>
-
-
-<script type="text/javascipt">
-$('#myModal').modal(options)
-$(".collapse").collapse()
-</script>
-<script type="text/javascipt">
-jQuery(document).ready(function(){
-$('.carousel').carousel()
-    $('.carousel').carousel({
-    interval: 1000
-    })
-	});
-</script>
-<script type="text/javascipt">
-$('.dropdown-toggle').dropdown()	
-</script>
- 
-		
-<script type="text/javascript" src="js/qtip/jquery.qtip.min.js"></script>
-<link href="js/qtip/jquery.qtip.min.css" rel="stylesheet" type="text/css" media="screen, projection">
-		
-<script type="text/javascript" language="JavaScript">
-<!-- Copyright 2002 Bontrager Connection, LLC
-
-function getCalendarDate()
-{
-   var months = new Array(13);
-   months[0]  = "January";
-   months[1]  = "February";
-   months[2]  = "March";
-   months[3]  = "April";
-   months[4]  = "May";
-   months[5]  = "June";
-   months[6]  = "July";
-   months[7]  = "August";
-   months[8]  = "September";
-   months[9]  = "October";
-   months[10] = "November";
-   months[11] = "December";
-   var now         = new Date();
-   var monthnumber = now.getMonth();
-   var monthname   = months[monthnumber];
-   var monthday    = now.getDate();
-   var year        = now.getYear();
-   if(year < 2000) { year = year + 1900; }
-   var dateString = monthname +
-                    ' ' +
-                    monthday +
-                    ', ' +
-                    year;
-   return dateString;
-} // function getCalendarDate()
-//-->
-</script>	
-<script language="javascript" type="text/javascript">
-/* Visit http://www.yaldex.com/ for full source code
-and get more free JavaScript, CSS and DHTML scripts! */
-<!-- Begin
-var timerID = null;
-var timerRunning = false;
-function stopclock (){
-if(timerRunning)
-clearTimeout(timerID);
-timerRunning = false;
-}
-function showtime () {
-var now = new Date();
-var hours = now.getHours();
-var minutes = now.getMinutes();
-var seconds = now.getSeconds()
-var timeValue = "" + ((hours >12) ? hours -12 :hours)
-if (timeValue == "0") timeValue = 12;
-timeValue += ((minutes < 10) ? ":0" : ":") + minutes
-timeValue += ((seconds < 10) ? ":0" : ":") + seconds
-timeValue += (hours >= 12) ? " P.M." : " A.M."
-document.clock.face.value = timeValue;
-timerID = setTimeout("showtime()",1000);
-timerRunning = true;
-}
-function startclock() {
-stopclock();
-showtime();
-}
-window.onload=startclock;
-// End -->
-</SCRIPT>		
-
-<?php include('hover.php'); ?>
-    
-	
-<link rel="icon" href="images/au.png" type="image" />
- <link rel="stylesheet" media="screen" type="text/css" href="css/spacegallery.css" />
-    <link rel="stylesheet" media="screen" type="text/css" href="css/custom.css" />
-
-    
-    <script type="text/javascript" src="js/eye.js"></script>
-    <script type="text/javascript" src="js/spacegallery.js"></script>
-    <script type="text/javascript" src="js/layout.js"></script>
-	
-	 <link rel="stylesheet" type="text/css" href="css/bootstrap.css" media="screen, projection" />
-	 <link rel="stylesheet" type="text/css" href="css/bootstrap-responsive.css" media="screen, projection" />
-	 <link rel="stylesheet" href="css/font-awesome.css">
-	 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<link rel="stylesheet" type="text/css" href="css/Home.css" media="screen, projection" />
-
 <?php
-function _redirect($url=''){
-	if(!empty($url)){
-		echo "<script> location.href = '".$url."' </script>";
-	}
-}
+// header.php (sticky/fixed version)
 ?>
-   
 
+<!-- ===== Header Assets ===== -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+<style>
+  :root{
+    --primary:#002f6c;
+    --accent:#0056b3;
+    --white:#fff;
+    --ink:#0d2343;
+    --muted:#6c7b90;
+    --border:#e6ebf4;
+    --shadow:0 6px 18px rgba(0,0,0,.08);
+    --ring:#9ec5ff;
+    --transition:all .2s ease;
+  }
+
+  /* ===== Header (fixed) ===== */
+  header.site-header{
+    background:var(--white); box-shadow:var(--shadow); border-bottom:1px solid var(--border);
+    padding:10px 22px; display:flex; justify-content:space-between; align-items:center; gap:16px;
+    position:fixed; top:0; left:0; right:0; z-index:1000;  /* <— fixed & on top */
+    color:var(--ink); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  header.site-header a{text-decoration:none; color:inherit}
+
+  .logo-section{display:flex; align-items:center; gap:10px}
+  .logo-section img{height:40px}
+  .logo-section .title{font-weight:700; font-size:16px; color:var(--primary); line-height:1.1}
+  .logo-section .title small{font-weight:600; font-size:12px; color:var(--accent)}
+
+  nav.main-nav{display:flex; align-items:center; gap:12px}
+  .nav-item{position:relative}
+  .nav-item > a{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px;
+    font-weight:700; color:var(--primary); transition:var(--transition);
+  }
+  .nav-item > a i{width:18px; text-align:center}
+  .nav-item > a:hover,
+  .nav-item > a:focus-visible{background:var(--primary); color:#fff; outline:none}
+  .nav-item.logout > a{color:#d92d2d; font-weight:800}
+  .nav-item.logout > a:hover,
+  .nav-item.logout > a:focus-visible{background:#ffe9e9; color:#b61e1e}
+
+  /* ===== Dropdowns (card style) ===== */
+  .dropdown,
+  .submenu{
+    display:none;
+    position:absolute;
+    top:calc(100% - 2px);
+    left:0;
+    min-width:240px;
+    background:#fff;
+    border:1px solid #e7eef7;
+    border-radius:14px;
+    box-shadow:0 10px 30px rgba(13,35,67,.12), 0 2px 6px rgba(13,35,67,.06);
+    padding:6px;
+    z-index:999;
+  }
+  .nav-item:hover > .dropdown,
+  .nav-item:focus-within > .dropdown{display:block}
+
+  .dropdown a,.submenu a{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:10px;
+    color:var(--primary); font-weight:600; white-space:nowrap;
+    transition:background .16s ease, color .16s ease, transform .06s ease;
+  }
+  .dropdown a:hover,.submenu a:hover,
+  .dropdown a:focus-visible,.submenu a:focus-visible{
+    background:var(--accent); color:#fff; outline:none;
+  }
+  .dropdown .divider{height:1px; background:#e9eff7; margin:6px 4px}
+
+  /* ===== Submenu behaves as stacked dropdown (not fly-out) ===== */
+  .has-submenu{position:relative}
+  .submenu{
+    position:static;
+    top:auto; left:auto;
+    min-width:auto;
+    border:none;
+    box-shadow:none;
+    padding:4px 0 0 0;
+    margin:0;
+    display:none;
+  }
+  .has-submenu:hover > .submenu,
+  .has-submenu:focus-within > .submenu,
+  .has-submenu.open > .submenu{display:block}
+  .submenu a{padding-left:36px}
+  .has-submenu > a .chev{margin-left:auto; transition:transform .2s ease}
+  .has-submenu.open > a .chev{transform:rotate(90deg)}
+
+  /* ===== Responsive ===== */
+  @media (max-width:768px){
+    header.site-header{flex-direction:column; align-items:stretch; gap:8px}
+    nav.main-nav{flex-direction:column; gap:6px}
+    .nav-item{width:100%}
+    .nav-item > a{width:100%}
+    .dropdown{position:relative; top:0; left:0; margin:6px 0 0 0; box-shadow:none}
+    .submenu{position:relative; padding-left:0}
+  }
+</style>
+
+<header class="site-header">
+  <div class="logo-section">
+    <img src="images/au.png" alt="Logo" />
+    <div class="title">
+      ONLINE ELECTION VOTING SYSTEM<br />
+      <small>Phinma Araullo University</small>
+    </div>
+  </div>
+
+  <nav class="main-nav" aria-label="Primary">
+    <div class="nav-item">
+      <a href="home.php"><i class="fas fa-home"></i> Home</a>
+    </div>
+
+    <div class="nav-item">
+      <a href="#" aria-haspopup="true" aria-expanded="false"><i class="fas fa-list-ul"></i> Menu</a>
+      <div class="dropdown" role="menu">
+        <a href="voters.php">Voters</a>
+        <div class="divider" role="separator" aria-hidden="true"></div>
+
+        <div class="has-submenu">
+          <a href="#" role="button" aria-expanded="false">
+            Admin Actions
+            <i class="fa fa-chevron-right chev" aria-hidden="true"></i>
+          </a>
+          <div class="submenu">
+            <a href="result.php"><i class="fa fa-table"></i> Election Result</a>
+            <a href="dashboard.php"><i class="fa fa-chart-bar"></i> Analytics</a>
+            <a href="canvassing_report.php"><i class="fa fa-table"></i> Vote Count Report</a>
+            <a href="voter_verification.php"><i class="fa fa-id-badge"></i> Voter Verification</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-item">
+      <a href="#" aria-haspopup="true" aria-expanded="false"><i class="fas fa-user-circle"></i> Profile</a>
+      <div class="dropdown" role="menu"><a href="profile.php">View Profile</a></div>
+    </div>
+
+    <div class="nav-item">
+      <a href="about.php"><i class="fas fa-circle-info"></i> About</a>
+    </div>
+
+    <div class="nav-item logout">
+      <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+  </nav>
+</header>
+
+<script>
+  // Add body top padding equal to header height so content doesn't jump under the fixed header
+  (function fixBodyOffset(){
+    const header = document.querySelector('header.site-header');
+    const setPad = () => document.body.style.paddingTop = header.offsetHeight + 'px';
+    window.addEventListener('load', setPad);
+    window.addEventListener('resize', setPad);
+  })();
+
+  // Keep the "Admin Actions" submenu usable on tap/click
+  (function stickyDropdown(){
+    const wrappers = document.querySelectorAll('.has-submenu');
+
+    wrappers.forEach(w => {
+      const trigger = w.querySelector(':scope > a');
+      if (!trigger) return;
+
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        const willOpen = !w.classList.contains('open');
+
+        // Close other open submenus within same dropdown
+        w.parentElement.querySelectorAll('.has-submenu.open').forEach(other => {
+          if (other !== w) other.classList.remove('open');
+        });
+
+        w.classList.toggle('open', willOpen);
+        trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      document.querySelectorAll('.has-submenu.open').forEach(w => {
+        if (!w.closest('.dropdown')?.contains(e.target)) {
+          w.classList.remove('open');
+          const t = w.querySelector(':scope > a');
+          if (t) t.setAttribute('aria-expanded','false');
+        }
+      });
+    });
+  })();
+</script>
